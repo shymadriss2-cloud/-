@@ -1,0 +1,789 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  BarChart3,
+  BookOpen,
+  BookOpenCheck,
+  CalendarDays,
+  Grid3X3,
+  HeartHandshake,
+  Lightbulb,
+  Menu,
+  Moon,
+  Settings,
+  Sparkles,
+  Sun,
+  X,
+} from 'lucide-react';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import { CelebrationModal } from './components/CelebrationModal';
+import { DuasScreen } from './components/DuasScreen';
+import { MethodScreen } from './components/MethodScreen';
+import { MushafMapScreen } from './components/MushafMapScreen';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { PlanScreen } from './components/PlanScreen';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { SettingsScreen } from './components/SettingsScreen';
+import { SetupScreen } from './components/SetupScreen';
+import { StatsScreen } from './components/StatsScreen';
+import { TipsScreen } from './components/TipsScreen';
+import { TodayScreen } from './components/TodayScreen';
+import { COLOR_PALETTES } from './data/palettes';
+import {
+  applyRatingToPages,
+  computeCurrentStreak,
+  formatShortArabicDate,
+  generatePlanCalendar,
+  getCompletedJuzList,
+  getExtraReviewPages,
+  getMemorizedStats,
+  getMissedPages,
+  getTodayLocalISO,
+} from './engine/planner';
+import { formatHHMM, getDueReminders } from './engine/reminders';
+import type {
+  AppColorPalette,
+  AppState,
+  MemorizationOrder,
+  MethodProgress,
+  PageStatus,
+  ReminderSettings,
+  ScreenId,
+  TaskKind,
+  TaskRating,
+  TaskTimePreferences,
+} from './types/plan';
+import {
+  applyAppearanceToDocument,
+  buildAutostartSeedState,
+  DEFAULT_APP_STATE,
+  loadAppState,
+  saveAppState,
+} from './utils/storage';
+
+interface NavItem {
+  id: ScreenId;
+  label: string;
+  icon: typeof Sun;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'today', label: 'اليوم', icon: Sun },
+  { id: 'method', label: 'طريقة الحفظ', icon: Sparkles },
+  { id: 'plan', label: 'الخطة', icon: CalendarDays },
+  { id: 'mushaf', label: 'خريطة المصحف', icon: Grid3X3 },
+  { id: 'stats', label: 'الإحصائيات', icon: BarChart3 },
+  { id: 'tips', label: 'نصائح', icon: Lightbulb },
+  { id: 'duas', label: 'أدعية قرآنية', icon: HeartHandshake },
+  { id: 'settings', label: 'الإعدادات', icon: Settings },
+];
+
+export default function App() {
+  const [state, setState] = useState<AppState>(() => {
+    const existing = loadAppState();
+    if (!existing.plan && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('autostart') === '1') {
+        return buildAutostartSeedState();
+      }
+    }
+    return existing;
+  });
+
+  const [activeScreen, setActiveScreen] = useState<ScreenId>('today');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [celebratingJuz, setCelebratingJuz] = useState<number | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const firedRemindersRef = useRef<Set<string>>(new Set());
+
+  const todayIso = getTodayLocalISO();
+
+  useEffect(() => {
+    saveAppState(state);
+    applyAppearanceToDocument(state.darkMode, state.accentColor);
+  }, [state]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [activeScreen]);
+
+  // Subtle notification toast auto-dismiss
+  useEffect(() => {
+    if (!toastMsg) return;
+    const id = window.setTimeout(() => setToastMsg(null), 3200);
+    return () => window.clearTimeout(id);
+  }, [toastMsg]);
+
+  // Browser notification timer check (handles task reminders & standalone daily reminder)
+  useEffect(() => {
+    const anyEnabled = state.reminders.enabled || state.reminders.dailyReminderEnabled;
+    if (!anyEnabled || typeof window === 'undefined') {
+      return;
+    }
+    const checkReminders = () => {
+      const now = new Date();
+      const hhmm = formatHHMM(now);
+      const dateStr = getTodayLocalISO(now);
+      const dueList = getDueReminders(
+        state.reminders,
+        hhmm,
+        dateStr,
+        firedRemindersRef.current
+      );
+      const canUseBrowserNotif =
+        'Notification' in window && Notification.permission === 'granted';
+      for (const item of dueList) {
+        firedRemindersRef.current.add(item.fireKey);
+        if (canUseBrowserNotif) {
+          new Notification(item.title, { body: item.body });
+        }
+        setToastMsg(item.body);
+      }
+    };
+    checkReminders();
+    const id = window.setInterval(checkReminders, 15000);
+    return () => window.clearInterval(id);
+  }, [state.reminders]);
+
+  const calendar = useMemo(() => {
+    if (!state.plan) return [];
+    return generatePlanCalendar(state.plan.startDate, state.plan.order);
+  }, [state.plan]);
+
+  const plannedToday = useMemo(
+    () => calendar.find((d) => d.date === todayIso) ?? null,
+    [calendar, todayIso]
+  );
+
+  const missedPages = useMemo(
+    () => (state.plan ? getMissedPages(calendar, state.pageProgress, todayIso) : []),
+    [calendar, state.pageProgress, state.plan, todayIso]
+  );
+
+  const extraReviewPages = useMemo(
+    () => getExtraReviewPages(state.pageProgress),
+    [state.pageProgress]
+  );
+
+  const streak = useMemo(
+    () => (state.plan ? computeCurrentStreak(state.dayLogs, state.plan.startDate, todayIso) : 0),
+    [state.dayLogs, state.plan, todayIso]
+  );
+
+  const memorizedStats = useMemo(
+    () => getMemorizedStats(state.pageProgress),
+    [state.pageProgress]
+  );
+
+  const checkAndTriggerJuzCelebration = (
+    nextProgress: AppState['pageProgress'],
+    alreadyCelebrated: number[]
+  ): number[] => {
+    const completed = getCompletedJuzList(nextProgress);
+    const newlyDone = completed.find((j) => !alreadyCelebrated.includes(j));
+    if (newlyDone !== undefined) {
+      setCelebratingJuz(newlyDone);
+      return [...alreadyCelebrated, newlyDone];
+    }
+    return alreadyCelebrated;
+  };
+
+  const handleConfirmPlan = (startDate: string, order: MemorizationOrder) => {
+    setState((prev) => ({
+      ...prev,
+      plan: {
+        startDate,
+        order,
+        locked: true,
+        createdAt: new Date().toISOString(),
+      },
+    }));
+    setActiveScreen('today');
+  };
+
+  const handleUpdateTaskTime = (key: keyof TaskTimePreferences, time: string) => {
+    setState((prev) => ({
+      ...prev,
+      taskTimes: {
+        ...prev.taskTimes,
+        [key]: time,
+      },
+    }));
+  };
+
+  const handleCompleteTask = (
+    date: string,
+    kind: TaskKind,
+    pages: number[],
+    rating: TaskRating,
+    durationSeconds: number
+  ) => {
+    const nowIso = new Date().toISOString();
+    setState((prev) => {
+      const existingLog = prev.dayLogs[date] ?? { date, tasks: {} };
+      const nextLog = {
+        ...existingLog,
+        tasks: {
+          ...existingLog.tasks,
+          [kind]: {
+            completed: true,
+            rating,
+            completedAt: nowIso,
+            durationSeconds,
+          },
+        },
+      };
+
+      const nextProgress = applyRatingToPages(prev.pageProgress, pages, rating, kind, nowIso);
+      const nextCelebrated = checkAndTriggerJuzCelebration(nextProgress, prev.celebratedJuz);
+
+      return {
+        ...prev,
+        dayLogs: {
+          ...prev.dayLogs,
+          [date]: nextLog,
+        },
+        pageProgress: nextProgress,
+        celebratedJuz: nextCelebrated,
+      };
+    });
+
+    if (rating === 'mistakes') {
+      setToastMsg('تم تسجيل التقييم وإضافة الصفحات تلقائياً إلى المراجعة الإضافية');
+    } else {
+      setToastMsg('بارك الله فيك — تم حفظ إنجاز الورد');
+    }
+  };
+
+  const handleUpdateFridayTeacher = (date: string, recited: boolean, note: string) => {
+    setState((prev) => {
+      const existingLog = prev.dayLogs[date] ?? { date, tasks: {} };
+      return {
+        ...prev,
+        dayLogs: {
+          ...prev.dayLogs,
+          [date]: {
+            ...existingLog,
+            recitedToTeacher: recited,
+            teacherNote: note,
+          },
+        },
+      };
+    });
+  };
+
+  const handleCatchUpPage = (date: string, page: number) => {
+    const nowIso = new Date().toISOString();
+    setState((prev) => {
+      const existingLog = prev.dayLogs[date] ?? { date, tasks: {} };
+      const caught = Array.from(new Set([...(existingLog.caughtUpPages ?? []), page]));
+      const nextProgress = applyRatingToPages(prev.pageProgress, [page], 'hesitated', 'sabaq', nowIso);
+      const nextCelebrated = checkAndTriggerJuzCelebration(nextProgress, prev.celebratedJuz);
+      return {
+        ...prev,
+        dayLogs: {
+          ...prev.dayLogs,
+          [date]: {
+            ...existingLog,
+            caughtUpPages: caught,
+          },
+        },
+        pageProgress: nextProgress,
+        celebratedJuz: nextCelebrated,
+      };
+    });
+    setToastMsg(`تم استدراك صفحة ${page} بنجاح`);
+  };
+
+  const handleSetPageStatus = (page: number, status: PageStatus) => {
+    const nowIso = new Date().toISOString();
+    setState((prev) => {
+      const existing = prev.pageProgress[page] ?? {
+        page,
+        status: 'not_started',
+        extraReviewPending: false,
+        reviewCount: 0,
+      };
+      const nextProgress: AppState['pageProgress'] = {
+        ...prev.pageProgress,
+        [page]: {
+          ...existing,
+          status,
+          lastReviewedAt: nowIso,
+          memorizedAt:
+            status !== 'not_started' ? existing.memorizedAt ?? nowIso : undefined,
+          extraReviewPending: status === 'needs_review',
+          reviewCount: existing.reviewCount + 1,
+        },
+      };
+      const nextCelebrated = checkAndTriggerJuzCelebration(nextProgress, prev.celebratedJuz);
+      return {
+        ...prev,
+        pageProgress: nextProgress,
+        celebratedJuz: nextCelebrated,
+      };
+    });
+  };
+
+  const handleResolveExtraReview = (page: number) => {
+    handleSetPageStatus(page, 'strong');
+    setToastMsg(`تم تحديث صفحة ${page} إلى «متقن»`);
+  };
+
+  const handleToggleDuaVerified = (duaId: string) => {
+    setState((prev) => ({
+      ...prev,
+      verifiedDuas: {
+        ...prev.verifiedDuas,
+        [duaId]: !prev.verifiedDuas[duaId],
+      },
+    }));
+  };
+
+  const handleUpdateMethodProgress = (next: MethodProgress) => {
+    setState((prev) => ({ ...prev, methodProgress: next }));
+  };
+
+  const handleToggleDarkMode = () => {
+    setState((prev) => ({ ...prev, darkMode: !prev.darkMode }));
+  };
+
+  const handleChangeAccentColor = (accentColor: AppColorPalette) => {
+    setState((prev) => ({ ...prev, accentColor }));
+  };
+
+  const handleUpdateReminders = (reminders: ReminderSettings) => {
+    setState((prev) => ({ ...prev, reminders }));
+  };
+
+  const handleImportState = (imported: AppState) => {
+    setState(imported);
+    setActiveScreen('today');
+  };
+
+  const handleResetAllData = () => {
+    setState(DEFAULT_APP_STATE);
+    setActiveScreen('today');
+  };
+
+  // First-run setup gate if plan is not yet locked
+  if (!state.plan || !state.plan.locked) {
+    return <SetupScreen onConfirmPlan={handleConfirmPlan} />;
+  }
+
+  const previousPage =
+    plannedToday?.sabqiPages && plannedToday.sabqiPages.length > 0
+      ? plannedToday.sabqiPages[plannedToday.sabqiPages.length - 1]
+      : null;
+
+  const mobilePrimaryTabs: NavItem[] = [
+    NAV_ITEMS[0], // اليوم
+    NAV_ITEMS[2], // الخطة
+    NAV_ITEMS[3], // خريطة المصحف
+    NAV_ITEMS[4], // الإحصائيات
+  ];
+
+  const mobileDrawerItems: NavItem[] = [
+    NAV_ITEMS[1], // طريقة الحفظ
+    NAV_ITEMS[5], // نصائح
+    NAV_ITEMS[6], // أدعية قرآنية
+    NAV_ITEMS[7], // الإعدادات
+  ];
+
+  const activeNavMeta = NAV_ITEMS.find((n) => n.id === activeScreen) ?? NAV_ITEMS[0];
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] pb-20 lg:pb-0">
+        <div className="mx-auto flex min-h-screen max-w-[1440px]">
+          {/* Desktop Right RTL Sidebar */}
+          <aside className="hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[var(--bg-surface)] lg:flex lg:flex-col lg:justify-between">
+            <div className="p-5">
+              <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] pb-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <span className="font-display text-xl font-bold whitespace-nowrap text-[var(--text-primary)]">
+                  مِحراب الحفظ
+                </span>
+              </div>
+
+              <nav aria-label="التنقل الرئيسي" className="mt-5 space-y-1">
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const active = activeScreen === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setActiveScreen(item.id)}
+                      aria-current={active ? 'page' : undefined}
+                      className={`relative flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                        active
+                          ? 'text-[var(--accent)]'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      {active && (
+                        <motion.span
+                          layoutId="sidebar-active-pill"
+                          transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                          className="absolute inset-0 rounded-xl bg-[var(--accent-soft)]"
+                        />
+                      )}
+                      <Icon className="relative z-10 h-4 w-4 shrink-0" />
+                      <span className="relative z-10">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="space-y-4 border-t border-[var(--border-hairline)] p-5 text-xs text-[var(--text-muted)]">
+              {/* Quick Dark Mode & Color Swatches */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-[var(--text-secondary)]">المظهر واللون</span>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.94 }}
+                    onClick={handleToggleDarkMode}
+                    aria-label={state.darkMode ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي'}
+                    aria-pressed={state.darkMode}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-2.5 text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)]"
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={state.darkMode ? 'moon' : 'sun'}
+                        initial={{ opacity: 0, rotate: -30, scale: 0.8 }}
+                        animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                        exit={{ opacity: 0, rotate: 30, scale: 0.8 }}
+                        transition={{ duration: 0.16 }}
+                        className="inline-flex"
+                      >
+                        {state.darkMode ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                      </motion.span>
+                    </AnimatePresence>
+                    <span>{state.darkMode ? 'ليلي' : 'نهاري'}</span>
+                  </motion.button>
+                </div>
+
+                <div className="flex items-center gap-2" role="group" aria-label="اختيار لون الواجهة السريع">
+                  {COLOR_PALETTES.map((p) => {
+                    const active = state.accentColor === p.id;
+                    const color = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    return (
+                      <motion.button
+                        key={p.id}
+                        type="button"
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleChangeAccentColor(p.id)}
+                        aria-label={`تغيير لون الواجهة إلى ${p.title}`}
+                        aria-pressed={active}
+                        title={p.title}
+                        className={`h-6 w-6 rounded-full border transition-transform ${
+                          active
+                            ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-surface)]'
+                            : 'border-[var(--border-hairline)] hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border-t border-[var(--border-hairline)] pt-3">
+                <p className="font-medium text-[var(--text-secondary)]">
+                  بداية الخطة: {formatShortArabicDate(state.plan.startDate)}
+                </p>
+                <p className="mt-1 tabular-nums">
+                  نسبة الإنجاز: {memorizedStats.percent}% ({memorizedStats.memorizedCount} / ٦٠٤)
+                </p>
+              </div>
+              <PWAInstallButton variant="sidebar" />
+            </div>
+          </aside>
+
+        {/* Main Viewport */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Compact Top Header (<= 56px on mobile) */}
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-[var(--border-hairline)] bg-[var(--bg-surface)]/95 px-4 backdrop-blur-md lg:h-16 lg:px-8">
+            <div className="flex items-center gap-2 lg:hidden">
+              <BookOpen className="h-5 w-5 text-[var(--accent)]" />
+              <span className="font-display text-lg font-bold whitespace-nowrap">مِحراب الحفظ</span>
+            </div>
+
+            <span className="hidden text-sm font-semibold text-[var(--text-primary)] lg:inline">
+              {activeNavMeta.label}
+            </span>
+
+            <span className="hidden text-xs text-[var(--text-muted)] sm:inline">
+              {plannedToday ? `الشهر ${plannedToday.monthNumber} من ٣٦` : 'خطة الـ ٣ سنوات'}
+            </span>
+
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              onClick={() =>
+                setActiveScreen(activeScreen === 'method' ? 'today' : 'method')
+              }
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 text-xs font-medium whitespace-nowrap text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
+            >
+              <BookOpenCheck className="h-3.5 w-3.5" />
+              <span>{activeScreen === 'method' ? 'العودة لليوم' : 'طريقة الحفظ'}</span>
+            </motion.button>
+          </header>
+
+          <main className="mx-auto w-full max-w-5xl flex-1 p-4 md:p-6 lg:p-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeScreen}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {activeScreen === 'today' && (
+                  <TodayScreen
+                    todayIso={todayIso}
+                    startDate={state.plan.startDate}
+                    plannedDay={plannedToday}
+                    dayLog={state.dayLogs[todayIso]}
+                    pageProgress={state.pageProgress}
+                    taskTimes={state.taskTimes}
+                    missedPages={missedPages}
+                    extraReviewPages={extraReviewPages}
+                    streak={streak}
+                    memorizedCount={memorizedStats.memorizedCount}
+                    verifiedDuas={state.verifiedDuas}
+                    onUpdateTaskTime={handleUpdateTaskTime}
+                    onCompleteTask={handleCompleteTask}
+                    onUpdateFridayTeacher={handleUpdateFridayTeacher}
+                    onCatchUpPage={handleCatchUpPage}
+                    onResolveExtraReview={handleResolveExtraReview}
+                    onToggleDuaVerified={handleToggleDuaVerified}
+                    onNavigate={setActiveScreen}
+                  />
+                )}
+
+                {activeScreen === 'method' && (
+                  <MethodScreen
+                    todaySabaqPage={plannedToday?.sabaqPage ?? null}
+                    previousPage={previousPage}
+                    progress={state.methodProgress}
+                    todayIso={todayIso}
+                    onUpdateProgress={handleUpdateMethodProgress}
+                  />
+                )}
+
+                {activeScreen === 'plan' && (
+                  <PlanScreen
+                    calendar={calendar}
+                    order={state.plan.order}
+                    todayIso={todayIso}
+                    pageProgress={state.pageProgress}
+                  />
+                )}
+
+                {activeScreen === 'mushaf' && (
+                  <MushafMapScreen
+                    pageProgress={state.pageProgress}
+                    onSetPageStatus={handleSetPageStatus}
+                  />
+                )}
+
+                {activeScreen === 'stats' && (
+                  <StatsScreen
+                    pageProgress={state.pageProgress}
+                    streak={streak}
+                    todayIso={todayIso}
+                    onResolveWeakPage={handleResolveExtraReview}
+                  />
+                )}
+
+                {activeScreen === 'tips' && (
+                  <TipsScreen dayIndex={plannedToday?.dayIndex ?? 0} />
+                )}
+
+                {activeScreen === 'duas' && (
+                  <DuasScreen
+                    verifiedDuas={state.verifiedDuas}
+                    onToggleVerified={handleToggleDuaVerified}
+                  />
+                )}
+
+                {activeScreen === 'settings' && (
+                  <SettingsScreen
+                    state={state}
+                    plan={state.plan}
+                    onToggleDarkMode={handleToggleDarkMode}
+                    onChangeAccentColor={handleChangeAccentColor}
+                    onUpdateReminders={handleUpdateReminders}
+                    onImportState={handleImportState}
+                    onResetAllData={handleResetAllData}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Tab Bar (64px) */}
+      <nav
+        aria-label="التنقل السفلي"
+        className="fixed right-0 bottom-0 left-0 z-30 grid h-16 grid-cols-5 border-t border-[var(--border-hairline)] bg-[var(--bg-surface)]/95 backdrop-blur-md lg:hidden"
+      >
+        {mobilePrimaryTabs.map((item) => {
+          const Icon = item.icon;
+          const active = activeScreen === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setActiveScreen(item.id);
+              }}
+              className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+                active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="truncate">{item.label}</span>
+            </button>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen((v) => !v)}
+          aria-expanded={mobileMenuOpen}
+          className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+            mobileMenuOpen ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
+          }`}
+        >
+          <Menu className="h-5 w-5" />
+          <span>المزيد</span>
+        </button>
+      </nav>
+
+      {/* Mobile More Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex items-end bg-black/40 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 40 }}
+              animate={{ y: 0 }}
+              exit={{ y: 40 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full rounded-t-3xl border-t border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 pb-8"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">أقسام التطبيق</span>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  aria-label="إغلاق القائمة"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--text-muted)]"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="mb-4 flex items-center justify-between border-b border-[var(--border-hairline)] pb-3">
+                <div className="flex items-center gap-2">
+                  {COLOR_PALETTES.map((p) => {
+                    const active = state.accentColor === p.id;
+                    const color = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    return (
+                      <motion.button
+                        key={p.id}
+                        type="button"
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleChangeAccentColor(p.id)}
+                        aria-label={`لون ${p.title}`}
+                        aria-pressed={active}
+                        className={`h-7 w-7 rounded-full border transition-transform ${
+                          active
+                            ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-surface)]'
+                            : 'border-[var(--border-hairline)]'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    );
+                  })}
+                </div>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleToggleDarkMode}
+                  aria-pressed={state.darkMode}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 text-xs font-medium text-[var(--text-primary)]"
+                >
+                  {state.darkMode ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                  <span>{state.darkMode ? 'ليلي' : 'نهاري'}</span>
+                </motion.button>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {mobileDrawerItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = activeScreen === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveScreen(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex h-12 items-center gap-2.5 rounded-xl border px-3.5 text-sm font-medium ${
+                        active
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                          : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] text-[var(--text-primary)]'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Non-intrusive Feedback Toast */}
+      <AnimatePresence>
+        {toastMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            role="status"
+            className="fixed top-18 left-4 z-40 rounded-xl border border-[var(--accent)]/40 bg-[var(--bg-surface)] px-4 py-2.5 text-xs font-medium text-[var(--text-primary)] shadow-md lg:left-6"
+          >
+            {toastMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Offline Mode Status Pill */}
+      <OfflineIndicator />
+
+      {/* Juz Completion Celebration Modal */}
+      <CelebrationModal
+        juz={celebratingJuz}
+        onClose={() => setCelebratingJuz(null)}
+      />
+      </div>
+    </MotionConfig>
+  );
+}
