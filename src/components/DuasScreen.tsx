@@ -1,5 +1,6 @@
 import { BookOpenCheck } from 'lucide-react';
 import { QURANIC_DUAS } from '../data/duas';
+import { HeroCornerArabesque } from './IslamicOrnament';
 
 interface DuasScreenProps {
   verifiedDuas: Record<string, boolean>;
@@ -11,8 +12,9 @@ export function DuasScreen({ verifiedDuas, onToggleVerified }: DuasScreenProps) 
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+        <HeroCornerArabesque className="absolute -left-6 -top-6 h-44 w-44 text-[var(--accent)] opacity-[0.20]" />
+        <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs text-[var(--text-muted)]">
               أدعية مأثورة من كتاب الله مع رقم السورة والآية
@@ -41,9 +43,9 @@ export function DuasScreen({ verifiedDuas, onToggleVerified }: DuasScreenProps) 
           return (
             <article
               key={dua.id}
-              className={`flex flex-col justify-between rounded-2xl border p-5 transition-colors ${
+              className={`card-interactive flex flex-col justify-between rounded-2xl border p-5 ${
                 isVerified
-                  ? 'border-[var(--accent)]/40 bg-[var(--accent-soft)]/25'
+                  ? 'border-[var(--accent)]/45 bg-[var(--accent-soft)]/25'
                   : 'border-[var(--border-hairline)] bg-[var(--bg-surface)]'
               }`}
             >

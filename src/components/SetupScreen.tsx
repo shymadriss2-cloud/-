@@ -47,7 +47,7 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6 md:p-8"
+          className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6 md:p-8"
         >
           <div className="border-b border-[var(--border-hairline)] pb-5">
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">
@@ -168,7 +168,7 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
 
             <button
               type="submit"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
+              className="btn-accent-glow inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
             >
               <ShieldCheck className="h-5 w-5" />
               <span>تثبيت الخطة والبدء</span>

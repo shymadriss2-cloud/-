@@ -6,6 +6,7 @@ import {
   TIP_CATEGORY_LABELS,
   type TipCategory,
 } from '../data/tips';
+import { CardSuggestionOrnament, HeroCornerArabesque, ThemeEmblem } from './IslamicOrnament';
 
 interface TipsScreenProps {
   dayIndex: number;
@@ -28,25 +29,34 @@ export function TipsScreen({ dayIndex }: TipsScreenProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
-        <p className="text-xs text-[var(--text-muted)]">
-          تتجدد يومياً · {MEMORIZATION_TIPS.length} نصيحة عملية
-        </p>
-        <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
-          نصائح الحفظ والمراجعة
-        </h1>
+      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+        <HeroCornerArabesque className="absolute -left-6 -top-6 h-44 w-44 text-[var(--accent)] opacity-[0.20]" />
+        <div className="relative z-10">
+          <p className="text-xs text-[var(--text-muted)]">
+            تتجدد يومياً · {MEMORIZATION_TIPS.length} نصيحة عملية
+          </p>
+          <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
+            نصائح الحفظ والمراجعة
+          </h1>
+        </div>
       </section>
 
-      {/* Daily Highlight */}
-      <section className="rounded-2xl border border-[var(--accent)]/35 bg-[var(--accent-soft)]/50 p-6">
-        <div className="flex items-center justify-between text-xs text-[var(--accent)]">
-          <span className="font-semibold">نصيحة اليوم المختارة</span>
-          <span>{dailyTip.categoryLabel}</span>
+      {/* Daily Highlight Suggestion Card */}
+      <section className="card-suggestion rounded-2xl border border-[var(--accent)]/35 bg-[var(--accent-soft)]/50 p-6">
+        <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--accent)] opacity-[0.22]" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between text-xs text-[var(--accent)]">
+            <span className="inline-flex items-center gap-1.5 font-semibold">
+              <ThemeEmblem className="h-4 w-4 shrink-0" />
+              <span>نصيحة اليوم المختارة</span>
+            </span>
+            <span>{dailyTip.categoryLabel}</span>
+          </div>
+          <h2 className="mt-2 text-lg font-bold text-[var(--text-primary)]">{dailyTip.title}</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-[var(--text-secondary)]">
+            {dailyTip.body}
+          </p>
         </div>
-        <h2 className="mt-2 text-lg font-bold text-[var(--text-primary)]">{dailyTip.title}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-[var(--text-secondary)]">
-          {dailyTip.body}
-        </p>
       </section>
 
       {/* Filter & Search */}
@@ -102,7 +112,7 @@ export function TipsScreen({ dayIndex }: TipsScreenProps) {
           {filteredTips.map((tip) => (
             <article
               key={tip.id}
-              className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+              className="card-interactive rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
             >
               <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
                 <span className="tabular-nums">

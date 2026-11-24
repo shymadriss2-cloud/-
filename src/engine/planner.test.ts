@@ -1,20 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type { DayLog } from '../types/plan';
 import {
   buildMemorizationSequence,
   getJuzForPage,
   getManzilPagesPerDay,
+  JUZ_BEGINNINGS,
+  JUZ_NAMES_AR,
   JUZ_RANGES,
   TOTAL_MUSHAF_PAGES,
 } from './mushaf';
 import {
   applyRatingToPages,
+  buildPageRange,
   computeCurrentStreak,
+  confirmPastDayRecord,
+  diffDays,
   generatePlanCalendar,
   getExtraReviewPages,
   getJuzScheduleSummaries,
   getMissedPages,
   getPagesPerWeekLast3Months,
+  getPlanTimelineSummary,
+  getTodayPageFocusStatus,
+  getTotalActiveDays,
+  getUnconfirmedRecentPastDays,
   isBehindScheduleWarning,
 } from './planner';
 
@@ -192,4 +202,218 @@ test('getPagesPerWeekLast3Months buckets memorized pages across 13 weekly interv
     weekly.reduce((sum, w) => sum + w.count, 0),
     3
   );
+});
+
+test('confirmPastDayRecord restores streak after midnight, updates active days, and anchors page progress to targetDate', () => {
+  const startDate = '2026-11-15'; // Sun
+  const cal = generatePlanCalendar(startDate, 'A');
+  // User completed Sun (15th) and Mon (16th), forgot Tue (17th) before midnight, now it is Wed (18th)
+  let dayLogs: Record<string, DayLog> = {
+    '2026-11-15': { date: '2026-11-15', tasks: { sabaq: { completed: true } } },
+    '2026-11-16': { date: '2026-11-16', tasks: { sabaq: { completed: true } } },
+  };
+  let pageProgress = applyRatingToPages({}, [1, 2], 'perfect', 'sabaq', '2026-11-16T20:00:00Z', '2026-11-16');
+
+  // On Wed 2026-11-18 before confirming Tue: streak is broken (0) and active days = 2
+  assert.equal(computeCurrentStreak(dayLogs, startDate, '2026-11-18'), 0);
+  assert.equal(getTotalActiveDays(dayLogs), 2);
+
+  // Recent unconfirmed past days should highlight 2026-11-17 (yesterday) first
+  const unconfirmed = getUnconfirmedRecentPastDays(cal, dayLogs, '2026-11-18');
+  assert.equal(unconfirmed[0].date, '2026-11-17');
+
+  // User confirms Tue 2026-11-17 after midnight with numeric page 3 (and range helper test)
+  assert.deepEqual(buildPageRange(3, 5), [3, 4, 5]);
+  assert.deepEqual(buildPageRange(3, null), [3]);
+
+  const result = confirmPastDayRecord({
+    dayLogs,
+    pageProgress,
+    startDate,
+    todayIso: '2026-11-18',
+    targetDate: '2026-11-17',
+    pages: buildPageRange(3),
+    rating: 'perfect',
+    note: 'تأكيد بعد منتصف الليل',
+    plannedDay: unconfirmed[0],
+    nowIso: '2026-11-18T01:15:00Z',
+  });
+
+  dayLogs = result.dayLogs;
+  pageProgress = result.pageProgress;
+
+  // Streak is fully restored to 3 days and total active days is 3
+  assert.equal(computeCurrentStreak(dayLogs, startDate, '2026-11-18'), 3);
+  assert.equal(getTotalActiveDays(dayLogs), 3);
+  assert.equal(dayLogs['2026-11-17'].manualConfirmed, true);
+  assert.equal(dayLogs['2026-11-17'].tasks.sabaq?.retroactive, true);
+  // Page 3 is marked strong and anchored to 2026-11-17 (not 2026-11-18)
+  assert.equal(pageProgress[3].status, 'strong');
+  assert.equal(pageProgress[3].memorizedAt, '2026-11-17');
+  // Page 3 is no longer considered missed on 2026-11-18
+  const missed = getMissedPages(cal, pageProgress, '2026-11-18');
+  assert.equal(missed.some((m) => m.page === 3), false);
+});
+
+test('All 30 Juz beginnings match verified Surah, Ayah, and opening text', () => {
+  assert.equal(Object.keys(JUZ_BEGINNINGS).length, 30);
+  assert.equal(Object.keys(JUZ_NAMES_AR).length, 30);
+
+  assert.deepEqual(JUZ_BEGINNINGS[1], {
+    juz: 1,
+    surah: 'الفاتحة',
+    ayah: 1,
+    opening: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+  });
+  assert.deepEqual(JUZ_BEGINNINGS[7], {
+    juz: 7,
+    surah: 'المائدة',
+    ayah: 82,
+    opening: 'لَتَجِدَنَّ أَشَدَّ النَّاسِ عَدَاوَةً',
+  });
+  assert.deepEqual(JUZ_BEGINNINGS[11], {
+    juz: 11,
+    surah: 'التوبة',
+    ayah: 93,
+    opening: 'إِنَّمَا السَّبِيلُ عَلَى الَّذِينَ يَسْتَأْذِنُونَكَ',
+  });
+  assert.deepEqual(JUZ_BEGINNINGS[14], {
+    juz: 14,
+    surah: 'الحجر',
+    ayah: 1,
+    opening: 'الر',
+  });
+  assert.deepEqual(JUZ_BEGINNINGS[20], {
+    juz: 20,
+    surah: 'النمل',
+    ayah: 56,
+    opening: 'فَمَا كَانَ جَوَابَ قَوْمِهِ',
+  });
+  assert.deepEqual(JUZ_BEGINNINGS[21], {
+    juz: 21,
+    surah: 'العنكبوت',
+    ayah: 46,
+    opening: 'وَلَا تُجَادِلُوا أَهْلَ الْكِتَابِ',
+  });
+  assert.deepEqual(JUZ_BEGINNINGS[23], {
+    juz: 23,
+    surah: 'يس',
+    ayah: 28,
+    opening: 'وَمَا أَنزَلْنَا عَلَىٰ قَوْمِهِ مِن بَعْدِهِ',
+  });
+  assert.deepEqual(JUZ_BEGINNINGS[30], {
+    juz: 30,
+    surah: 'النبأ',
+    ayah: 1,
+    opening: 'عَمَّ يَتَسَاءَلُونَ',
+  });
+  assert.match(JUZ_NAMES_AR[1], /بِسْمِ اللَّهِ/);
+  assert.match(JUZ_NAMES_AR[14], /الر/);
+  assert.match(JUZ_NAMES_AR[21], /وَلَا تُجَادِلُوا/);
+});
+
+test('getPlanTimelineSummary computes memorization end date, consolidation end date, and remaining days accurately', () => {
+  const startDate = '2026-11-15';
+  const cal = generatePlanCalendar(startDate, 'A');
+  const sabaqDays = cal.filter((d) => d.sabaqPage !== null);
+  const expectedMemEnd = sabaqDays[sabaqDays.length - 1].date;
+  const expectedConsEnd = cal[cal.length - 1].date;
+
+  assert.equal(diffDays('2026-11-15', '2026-11-15'), 0);
+  assert.equal(diffDays('2026-11-15', '2026-11-22'), 7);
+  assert.equal(diffDays('2026-11-22', '2026-11-15'), -7);
+
+  // On start date
+  const atStart = getPlanTimelineSummary(cal, startDate, startDate);
+  assert.equal(atStart.memorizationEndDate, expectedMemEnd);
+  assert.equal(atStart.consolidationEndDate, expectedConsEnd);
+  assert.ok(atStart.memorizationEndDate < atStart.consolidationEndDate);
+  assert.equal(atStart.remainingSabaqDays, 604);
+  assert.equal(atStart.daysRemainingToMemorization, diffDays(startDate, expectedMemEnd));
+  assert.equal(atStart.daysRemainingToConsolidation, diffDays(startDate, expectedConsEnd));
+
+  // One week later (2026-11-22)
+  const afterWeek = getPlanTimelineSummary(cal, startDate, '2026-11-22');
+  assert.equal(
+    afterWeek.daysRemainingToMemorization,
+    atStart.daysRemainingToMemorization - 7
+  );
+  assert.equal(afterWeek.remainingSabaqDays, 599); // First week Sun-Thu (5 pages) passed
+
+  // On final memorization day
+  const onMemEnd = getPlanTimelineSummary(cal, startDate, expectedMemEnd);
+  assert.equal(onMemEnd.daysRemainingToMemorization, 0);
+  assert.equal(onMemEnd.remainingSabaqDays, 1);
+  assert.ok(onMemEnd.daysRemainingToConsolidation > 180);
+
+  // After full 36-month plan ends
+  const afterPlan = getPlanTimelineSummary(cal, startDate, '2030-01-01');
+  assert.equal(afterPlan.daysRemainingToMemorization, 0);
+  assert.equal(afterPlan.daysRemainingToConsolidation, 0);
+  assert.equal(afterPlan.remainingSabaqDays, 0);
+});
+
+test('getTodayPageFocusStatus tracks today page number and completion state across modes', () => {
+  const startDate = '2026-11-15'; // Sun
+  const cal = generatePlanCalendar(startDate, 'A');
+
+  // Day 10 (has sabaq, sabqi, and manzil)
+  const sabaqDays = cal.filter((d) => d.sabaqPage !== null);
+  const day10 = sabaqDays[9];
+  assert.equal(day10.sabaqPage, 10);
+
+  const beforeDone = getTodayPageFocusStatus(day10, undefined, {}, []);
+  assert.equal(beforeDone.mode, 'sabaq');
+  assert.equal(beforeDone.primaryPage, 10);
+  assert.equal(beforeDone.juz, 1);
+  assert.equal(beforeDone.isCompleted, false);
+  assert.equal(beforeDone.areAllTasksDone, false);
+  assert.equal(beforeDone.totalTaskCount, 3);
+
+  // Completing Sabaq turns isCompleted true (badge changes to theme accent immediately)
+  const sabaqOnlyDone = getTodayPageFocusStatus(
+    day10,
+    { date: day10.date, tasks: { sabaq: { completed: true, rating: 'perfect' } } },
+    {},
+    []
+  );
+  assert.equal(sabaqOnlyDone.isCompleted, true);
+  assert.equal(sabaqOnlyDone.areAllTasksDone, false);
+  assert.equal(sabaqOnlyDone.completedTaskCount, 1);
+
+  // Completing all 3 tasks sets areAllTasksDone true
+  const allDone = getTodayPageFocusStatus(
+    day10,
+    {
+      date: day10.date,
+      tasks: {
+        sabaq: { completed: true, rating: 'perfect' },
+        sabqi: { completed: true, rating: 'perfect' },
+        manzil: { completed: true, rating: 'perfect' },
+      },
+    },
+    {},
+    []
+  );
+  assert.equal(allDone.isCompleted, true);
+  assert.equal(allDone.areAllTasksDone, true);
+  assert.equal(allDone.completedTaskCount, 3);
+
+  // Friday mode
+  const friday = cal.find((d) => d.isFriday)!;
+  const friStatus = getTodayPageFocusStatus(friday, undefined, {}, []);
+  assert.equal(friStatus.mode, 'friday');
+  assert.equal(friStatus.primaryPage, 1);
+  assert.equal(friStatus.isCompleted, false);
+
+  // Full review mode (months 31-36)
+  const fullRev = cal.find((d) => d.phase === 'full_review')!;
+  const revStatus = getTodayPageFocusStatus(
+    fullRev,
+    { date: fullRev.date, tasks: { full_review: { completed: true, rating: 'perfect' } } },
+    {},
+    []
+  );
+  assert.equal(revStatus.mode, 'full_review');
+  assert.equal(revStatus.isCompleted, true);
 });

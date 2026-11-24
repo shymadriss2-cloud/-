@@ -1,15 +1,17 @@
 import { useRef, useState } from 'react';
-import { Bell, Check, Clock, Download, Lock, Moon, Palette, RotateCcw, Sun, Upload } from 'lucide-react';
+import { Bell, CalendarCheck2, Check, Clock, Download, Lock, Moon, Palette, RotateCcw, Sun, Upload } from 'lucide-react';
 import { motion } from 'motion/react';
 import { COLOR_PALETTES } from '../data/palettes';
-import { formatShortArabicDate } from '../engine/planner';
+import { formatShortArabicDate, type PlanTimelineSummary } from '../engine/planner';
 import type { AppColorPalette, AppState, PlanConfig, ReminderSettings } from '../types/plan';
 import { validateImportedState } from '../utils/storage';
+import { HeroCornerArabesque, ThemeEmblem } from './IslamicOrnament';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsScreenProps {
   state: AppState;
   plan: PlanConfig;
+  timeline: PlanTimelineSummary;
   onToggleDarkMode: () => void;
   onChangeAccentColor: (palette: AppColorPalette) => void;
   onUpdateReminders: (reminders: ReminderSettings) => void;
@@ -20,6 +22,7 @@ interface SettingsScreenProps {
 export function SettingsScreen({
   state,
   plan,
+  timeline,
   onToggleDarkMode,
   onChangeAccentColor,
   onUpdateReminders,
@@ -146,44 +149,90 @@ export function SettingsScreen({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
-        <p className="text-xs text-[var(--text-muted)]">تخصيص المظهر والتنبيهات والنسخ الاحتياطي</p>
-        <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
-          الإعدادات
-        </h1>
+      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+        <HeroCornerArabesque className="absolute -left-6 -top-6 h-44 w-44 text-[var(--accent)] opacity-[0.20]" />
+        <div className="relative z-10">
+          <p className="text-xs text-[var(--text-muted)]">تخصيص المظهر والتنبيهات والنسخ الاحتياطي</p>
+          <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
+            الإعدادات
+          </h1>
+        </div>
       </section>
 
       {statusMessage && (
         <div
           role="status"
-          className="rounded-xl border border-[var(--accent)]/35 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--text-primary)]"
+          className="card-elevated rounded-xl border border-[var(--accent)]/35 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--text-primary)]"
         >
           {statusMessage}
         </div>
       )}
 
-      {/* Locked Plan Info */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
-        <div className="flex items-start gap-3">
-          <Lock className="mt-0.5 h-5 w-5 text-[var(--accent)]" />
-          <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              بيانات الخطة الثابتة (مقفلة)
-            </h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              تاريخ البداية: <span className="font-medium tabular-nums">{formatShortArabicDate(plan.startDate)}</span>
-              {' · '}
-              المسار:{' '}
-              <span className="font-medium">
-                {plan.order === 'A' ? 'أ (من الفاتحة صعوداً)' : 'ب (من جزء عمّ نزولاً)'}
-              </span>
+      {/* Locked Plan Info & Completion Dates */}
+      <section
+        data-testid="settings-plan-dates"
+        className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent)]" />
+            <div>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                بيانات الخطة الثابتة ومواعيد الإتمام
+              </h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                المسار المعتمد:{' '}
+                <span className="font-medium text-[var(--text-primary)]">
+                  {plan.order === 'A' ? 'أ (من الفاتحة صعوداً)' : 'ب (من جزء عمّ نزولاً)'}
+                </span>
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent-soft)] px-3 py-1 text-xs font-medium text-[var(--accent)]">
+            <CalendarCheck2 className="h-3.5 w-3.5" />
+            <span>خطة ٣٦ شهراً ثابتة</span>
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-4">
+            <p className="text-xs text-[var(--text-muted)]">تاريخ البداية</p>
+            <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--text-primary)]">
+              {formatShortArabicDate(plan.startDate)}
+            </p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">انطلاق الورد اليومي</p>
+          </div>
+
+          <div
+            data-testid="settings-memorization-end-date"
+            className="rounded-xl border border-[var(--accent)]/35 bg-[var(--accent-soft)]/35 p-4"
+          >
+            <p className="text-xs font-medium text-[var(--accent)]">موعد إنهاء الحفظ</p>
+            <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--text-primary)]">
+              {formatShortArabicDate(timeline.memorizationEndDate)}
+            </p>
+            <p className="mt-1 text-xs tabular-nums text-[var(--text-secondary)]">
+              إتمام ٦٠٤ صفحات · متبقي {timeline.daysRemainingToMemorization} يوم
+            </p>
+          </div>
+
+          <div
+            data-testid="settings-consolidation-end-date"
+            className="rounded-xl border border-[var(--gold)]/35 bg-[var(--gold-soft)]/45 p-4"
+          >
+            <p className="text-xs font-medium text-[var(--gold)]">موعد إنهاء التثبيت</p>
+            <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--text-primary)]">
+              {formatShortArabicDate(timeline.consolidationEndDate)}
+            </p>
+            <p className="mt-1 text-xs tabular-nums text-[var(--text-secondary)]">
+              ختام المراجعة الشاملة · متبقي {timeline.daysRemainingToConsolidation} يوم
             </p>
           </div>
         </div>
       </section>
 
       {/* Appearance: Dark Mode + Color Palette Selector */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-hairline)] pb-5">
           <div className="flex items-center gap-2.5">
             {state.darkMode ? (
@@ -233,15 +282,21 @@ export function SettingsScreen({
 
         <div className="mt-5 flex items-center gap-2">
           <Palette className="h-5 w-5 text-[var(--accent)]" />
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">
-            لون واجهة التطبيق
-          </h2>
+          <div>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              ثيمات وألوان تغلّف الواجهة بالكامل
+            </h2>
+            <p className="text-xs text-[var(--text-muted)]">
+              اختر طابع الألوان الذي يغطي الخلفية والقوائم والبطاقات بتناسق مريح
+            </p>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {COLOR_PALETTES.map((p) => {
             const active = state.accentColor === p.id;
             const swatchColor = state.darkMode ? p.darkSwatch : p.lightSwatch;
+            const canvasColor = state.darkMode ? p.darkCanvas : p.lightCanvas;
             return (
               <motion.button
                 key={p.id}
@@ -249,20 +304,26 @@ export function SettingsScreen({
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onChangeAccentColor(p.id)}
                 aria-pressed={active}
-                className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-right transition-colors ${
+                className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-right transition-all ${
                   active
-                    ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                    : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)]'
+                    ? 'card-elevated border-[var(--accent)] bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]/25'
+                    : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)] hover:shadow-xs'
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <span
-                    className="mt-1 h-5 w-5 shrink-0 rounded-full border border-black/10"
-                    style={{ backgroundColor: swatchColor }}
+                    className="mt-0.5 h-8 w-8 shrink-0 rounded-xl border border-black/10 shadow-xs"
+                    style={{
+                      background: `linear-gradient(135deg, ${swatchColor} 52%, ${canvasColor} 52%)`,
+                    }}
                   />
                   <div>
                     <p className="text-sm font-semibold text-[var(--text-primary)]">{p.title}</p>
                     <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{p.subtitle}</p>
+                    <span className="mt-2 inline-flex items-center gap-1 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+                      <ThemeEmblem palette={p.id} className="h-3.5 w-3.5 shrink-0" />
+                      <span>{p.ornamentLabel}</span>
+                    </span>
                   </div>
                 </div>
                 {active && <Check className="mt-1 h-4 w-4 shrink-0 text-[var(--accent)]" />}
@@ -273,7 +334,7 @@ export function SettingsScreen({
       </section>
 
       {/* Standalone Daily Reminder */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-[var(--accent)]" />
@@ -345,7 +406,7 @@ export function SettingsScreen({
       </section>
 
       {/* Specific Task Browser Notifications */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-[var(--accent)]" />
@@ -432,7 +493,7 @@ export function SettingsScreen({
       </section>
 
       {/* Export / Import */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <h2 className="text-base font-semibold text-[var(--text-primary)]">
           النسخ الاحتياطي والخصوصية
         </h2>
@@ -444,7 +505,7 @@ export function SettingsScreen({
           <button
             type="button"
             onClick={handleExport}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-xs font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
+            className="btn-accent-glow inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-xs font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
           >
             <Download className="h-4 w-4" />
             <span>تصدير البيانات (JSON)</span>

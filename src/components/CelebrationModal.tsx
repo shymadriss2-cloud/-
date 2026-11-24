@@ -63,11 +63,11 @@ export function CelebrationModal({ juz, onClose }: CelebrationModalProps) {
               «رَبَّنَا تَقَبَّلْ مِنَّا ۖ إِنَّكَ أَنتَ السَّمِيعُ الْعَلِيمُ»
             </p>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 text-sm font-medium text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
-            >
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-accent-glow mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 text-sm font-medium text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
+              >
               <CheckCircle2 className="h-4 w-4" />
               <span>مواصلة الرحلة</span>
             </button>

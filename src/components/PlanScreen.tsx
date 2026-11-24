@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatPageRangeAr, JUZ_NAMES_AR } from '../engine/mushaf';
+import { Check, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatPageRangeAr, JUZ_BEGINNINGS, JUZ_NAMES_AR } from '../engine/mushaf';
 import {
   ARABIC_WEEKDAYS,
   formatArabicDate,
   formatShortArabicDate,
   getJuzCompletionStats,
   getJuzScheduleSummaries,
+  hasDayActivity,
 } from '../engine/planner';
-import type { MemorizationOrder, PageProgress, PlannedDay } from '../types/plan';
+import type { DayLog, MemorizationOrder, PageProgress, PlannedDay, TaskRating } from '../types/plan';
 import { ProgressRing } from './ProgressRing';
 
 interface PlanScreenProps {
@@ -16,11 +17,25 @@ interface PlanScreenProps {
   order: MemorizationOrder;
   todayIso: string;
   pageProgress: Record<number, PageProgress>;
+  dayLogs: Record<string, DayLog>;
+  onConfirmPastWork: (
+    targetDate: string,
+    pages: number[],
+    rating: TaskRating,
+    note?: string
+  ) => void;
 }
 
 type PlanTab = 'weekly' | 'monthly' | 'juz';
 
-export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScreenProps) {
+export function PlanScreen({
+  calendar,
+  order,
+  todayIso,
+  pageProgress,
+  dayLogs,
+  onConfirmPastWork,
+}: PlanScreenProps) {
   const [activeTab, setActiveTab] = useState<PlanTab>('weekly');
 
   const todayIndex = useMemo(() => {
@@ -68,7 +83,7 @@ export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScre
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs text-[var(--text-muted)]">
@@ -291,6 +306,7 @@ export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScre
                 {monthDays.map((day) => {
                   const isToday = day.date === todayIso;
                   const isSelected = inspectedDay?.date === day.date;
+                  const isConfirmed = hasDayActivity(dayLogs[day.date]);
                   return (
                     <button
                       key={day.date}
@@ -301,6 +317,8 @@ export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScre
                           ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
                           : isToday
                           ? 'border-[var(--gold)] bg-[var(--gold-soft)]/50'
+                          : isConfirmed
+                          ? 'border-[var(--accent)]/40 bg-[var(--accent-soft)]/25 hover:border-[var(--accent)]'
                           : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)]'
                       }`}
                     >
@@ -308,9 +326,18 @@ export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScre
                         <span className="tabular-nums font-medium text-[var(--text-secondary)]">
                           {day.date.slice(8)}/{day.date.slice(5, 7)}
                         </span>
-                        <span className="text-[10px] text-[var(--text-muted)] sm:hidden">
-                          {ARABIC_WEEKDAYS[day.dayOfWeek]}
-                        </span>
+                        {isConfirmed ? (
+                          <span
+                            title="يوم مؤكد في السلسلة"
+                            className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] text-[var(--accent-ink)]"
+                          >
+                            <Check className="h-2.5 w-2.5" />
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-[var(--text-muted)] sm:hidden">
+                            {ARABIC_WEEKDAYS[day.dayOfWeek]}
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-1 text-xs font-semibold text-[var(--text-primary)]">
@@ -334,13 +361,22 @@ export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScre
             <aside className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
               {inspectedDay ? (
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      تفاصيل اليوم · الشهر {inspectedDay.monthNumber}
-                    </p>
-                    <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
-                      {formatArabicDate(inspectedDay.date)}
-                    </h2>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        تفاصيل اليوم · الشهر {inspectedDay.monthNumber}
+                      </p>
+                      <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
+                        {formatArabicDate(inspectedDay.date)}
+                      </h2>
+                    </div>
+
+                    {hasDayActivity(dayLogs[inspectedDay.date]) && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)]">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>مؤكد</span>
+                      </span>
+                    )}
                   </div>
 
                   {inspectedDay.phase === 'full_review' ? (
@@ -386,6 +422,43 @@ export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScre
                       </div>
                     </div>
                   )}
+
+                  {dayLogs[inspectedDay.date]?.manualNote && (
+                    <p className="rounded-xl bg-[var(--bg-canvas)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+                      ملاحظة: {dayLogs[inspectedDay.date]?.manualNote}
+                    </p>
+                  )}
+
+                  {!hasDayActivity(dayLogs[inspectedDay.date]) && inspectedDay.date <= todayIso && (
+                    <div className="border-t border-[var(--border-hairline)] pt-3">
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        لم يُؤكَّد هذا اليوم بعد في سلسلة الاستمرار.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pages =
+                            inspectedDay.sabaqPage !== null
+                              ? [inspectedDay.sabaqPage]
+                              : inspectedDay.weeklyReviewPages.length > 0
+                              ? inspectedDay.weeklyReviewPages
+                              : inspectedDay.fullReviewPages.length > 0
+                              ? inspectedDay.fullReviewPages
+                              : [];
+                          onConfirmPastWork(
+                            inspectedDay.date,
+                            pages,
+                            'perfect',
+                            inspectedDay.date < todayIso ? 'تأكيد بعد منتصف الليل من الجدول' : 'تأكيد من الجدول'
+                          );
+                        }}
+                        className="btn-accent-glow mt-2.5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-xs font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>تأكيد واحتساب هذا اليوم في السلسلة</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-[var(--text-muted)]">اختر يوماً لعرض تفاصيله.</p>
@@ -411,10 +484,18 @@ export function PlanScreen({ calendar, order, todayIso, pageProgress }: PlanScre
               <tbody className="divide-y divide-[var(--border-hairline)]">
                 {juzSummaries.map((item) => {
                   const stats = getJuzCompletionStats(pageProgress, item.juz);
+                  const beginning = JUZ_BEGINNINGS[item.juz];
                   return (
                     <tr key={item.juz} className="hover:bg-[var(--bg-canvas)]">
-                      <td className="px-4 py-3 font-medium text-[var(--text-primary)]">
-                        {JUZ_NAMES_AR[item.juz]}
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-[var(--text-primary)]">
+                          {JUZ_NAMES_AR[item.juz]}
+                        </p>
+                        {beginning && (
+                          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                            {beginning.surah} {beginning.ayah} · {beginning.opening}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3 tabular-nums text-[var(--text-secondary)]">
                         {item.startPage}–{item.endPage} ({item.pageCount} ص)

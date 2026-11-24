@@ -74,7 +74,7 @@ export function StatsScreen({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <p className="text-xs text-[var(--text-muted)]">مؤشرات الإنجاز والثبات</p>
         <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
           الإحصائيات والتقدم
@@ -87,7 +87,7 @@ export function StatsScreen({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0 }}
-          className="flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+          className="card-interactive flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
         >
           <div>
             <p className="text-xs text-[var(--text-muted)]">نسبة الحفظ</p>
@@ -105,7 +105,7 @@ export function StatsScreen({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.04 }}
-          className="flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+          className="card-interactive flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
         >
           <div>
             <p className="text-xs text-[var(--text-muted)]">سلسلة الاستمرار</p>
@@ -123,7 +123,7 @@ export function StatsScreen({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.08 }}
-          className="flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+          className="card-interactive flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
         >
           <div>
             <p className="text-xs text-[var(--text-muted)]">صفحات متقنة</p>
@@ -141,7 +141,7 @@ export function StatsScreen({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.12 }}
-          className="flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+          className="card-interactive flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
         >
           <div>
             <p className="text-xs text-[var(--text-muted)]">تحتاج مراجعة</p>
@@ -157,7 +157,7 @@ export function StatsScreen({
       </div>
 
       {/* Recharts Weekly Consistency Bar Chart (Last 3 Months) */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
@@ -230,7 +230,7 @@ export function StatsScreen({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Pages per Month Chart */}
-        <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+        <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
             الصفحات المحفوظة شهرياً
           </h2>
@@ -271,7 +271,7 @@ export function StatsScreen({
         </section>
 
         {/* Weakest Pages */}
-        <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+        <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">
             أضعف الصفحات (الأولى بالمراجعة)
           </h2>
@@ -312,7 +312,7 @@ export function StatsScreen({
       </div>
 
       {/* 30 Juz Progress Rings */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <h2 className="text-base font-semibold text-[var(--text-primary)]">
           تقدم الأجزاء الثلاثين
         </h2>

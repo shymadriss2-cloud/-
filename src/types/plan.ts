@@ -8,7 +8,17 @@ export type PageStatus = 'not_started' | 'memorized' | 'strong' | 'needs_review'
 
 export type AppTheme = 'sakina' | 'ward' | 'layl';
 
-export type AppColorPalette = 'emerald' | 'linen' | 'sapphire' | 'amber' | 'plum';
+export type AppColorPalette =
+  | 'emerald'
+  | 'linen'
+  | 'sapphire'
+  | 'amber'
+  | 'plum'
+  | 'rose'
+  | 'burgundy'
+  | 'teal'
+  | 'olive'
+  | 'sunset';
 
 export type ScreenId =
   | 'today'
@@ -45,6 +55,7 @@ export interface TaskCompletionRecord {
   rating?: TaskRating;
   completedAt?: string;
   durationSeconds?: number;
+  retroactive?: boolean;
 }
 
 export interface DayLog {
@@ -53,6 +64,10 @@ export interface DayLog {
   recitedToTeacher?: boolean;
   teacherNote?: string;
   caughtUpPages?: number[];
+  manualConfirmed?: boolean;
+  manualPages?: number[];
+  manualNote?: string;
+  confirmedAfterMidnightAt?: string;
 }
 
 export interface PageProgress {
@@ -92,6 +107,7 @@ export interface AppState {
   darkMode: boolean;
   accentColor: AppColorPalette;
   methodProgress: MethodProgress | null;
+  methodDurations?: Record<number, number>;
 }
 
 export interface PlannedDay {

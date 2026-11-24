@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   AlertTriangle,
   BookCheck,
+  CalendarClock,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Flame,
+  History,
   Pause,
   Play,
   RotateCcw,
@@ -16,10 +19,15 @@ import { getDailyDua } from '../data/duas';
 import { getDailyTip } from '../data/tips';
 import { formatPageRangeAr, getJuzForPage, JUZ_NAMES_AR, TOTAL_MUSHAF_PAGES } from '../engine/mushaf';
 import {
+  addDays,
+  buildPageRange,
   formatArabicDate,
   formatShortArabicDate,
   getJuzCompletionStats,
+  getUnconfirmedRecentPastDays,
   type MissedPageInfo,
+  type PlanTimelineSummary,
+  type TodayPageFocusStatus,
 } from '../engine/planner';
 import type {
   DayLog,
@@ -30,19 +38,25 @@ import type {
   TaskRating,
   TaskTimePreferences,
 } from '../types/plan';
+import { ArabesqueDivider, CardSuggestionOrnament, HeroCornerArabesque, ThemeEmblem } from './IslamicOrnament';
 import { ProgressRing } from './ProgressRing';
+import { TodayPageBadge } from './TodayPageBadge';
 
 interface TodayScreenProps {
   todayIso: string;
   startDate: string;
+  calendar: PlannedDay[];
   plannedDay: PlannedDay | null;
   dayLog: DayLog | undefined;
+  dayLogs: Record<string, DayLog>;
   pageProgress: Record<number, PageProgress>;
   taskTimes: TaskTimePreferences;
   missedPages: MissedPageInfo[];
   extraReviewPages: number[];
   streak: number;
   memorizedCount: number;
+  timeline: PlanTimelineSummary;
+  todayFocus: TodayPageFocusStatus;
   verifiedDuas: Record<string, boolean>;
   onUpdateTaskTime: (key: keyof TaskTimePreferences, time: string) => void;
   onCompleteTask: (
@@ -51,6 +65,12 @@ interface TodayScreenProps {
     pages: number[],
     rating: TaskRating,
     durationSeconds: number
+  ) => void;
+  onConfirmPastWork: (
+    targetDate: string,
+    pages: number[],
+    rating: TaskRating,
+    note?: string
   ) => void;
   onUpdateFridayTeacher: (date: string, recited: boolean, note: string) => void;
   onCatchUpPage: (date: string, page: number) => void;
@@ -123,9 +143,9 @@ function DailyTaskCard({
   return (
     <motion.section
       layout
-      className={`rounded-2xl border p-5 transition-colors ${
+      className={`card-interactive rounded-2xl border p-5 ${
         isCompleted
-          ? 'border-[var(--accent)]/40 bg-[var(--accent-soft)]/35'
+          ? 'border-[var(--accent)]/45 bg-[var(--accent-soft)]/35'
           : 'border-[var(--border-hairline)] bg-[var(--bg-surface)]'
       }`}
     >
@@ -201,7 +221,7 @@ function DailyTaskCard({
                 className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium whitespace-nowrap transition-colors ${
                   isCompleted
                     ? 'border border-[var(--accent)]/40 bg-[var(--bg-surface)] text-[var(--accent)] hover:bg-[var(--bg-subtle)]'
-                    : 'bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]'
+                    : 'btn-accent-glow bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]'
                 }`}
               >
                 <Check className="h-4 w-4" />
@@ -266,17 +286,22 @@ function DailyTaskCard({
 export function TodayScreen({
   todayIso,
   startDate,
+  calendar,
   plannedDay,
   dayLog,
+  dayLogs,
   pageProgress,
   taskTimes,
   missedPages,
   extraReviewPages,
   streak,
   memorizedCount,
+  timeline,
+  todayFocus,
   verifiedDuas,
   onUpdateTaskTime,
   onCompleteTask,
+  onConfirmPastWork,
   onUpdateFridayTeacher,
   onCatchUpPage,
   onResolveExtraReview,
@@ -300,6 +325,101 @@ export function TodayScreen({
     setTeacherNoteDraft(dayLog?.teacherNote ?? '');
   }, [dayLog?.teacherNote, todayIso]);
 
+  const yesterdayIso = useMemo(() => addDays(todayIso, -1), [todayIso]);
+  const unconfirmedRecentDays = useMemo(
+    () => getUnconfirmedRecentPastDays(calendar, dayLogs, todayIso, 7),
+    [calendar, dayLogs, todayIso]
+  );
+
+  const defaultRetroDate =
+    yesterdayIso >= startDate ? yesterdayIso : todayIso;
+  const getSuggestedPageForDate = (iso: string): string => {
+    const day = calendar.find((d) => d.date === iso);
+    if (!day) return '';
+    if (day.sabaqPage !== null) return String(day.sabaqPage);
+    if (day.weeklyReviewPages.length > 0) return String(day.weeklyReviewPages[0]);
+    if (day.fullReviewPages.length > 0) return String(day.fullReviewPages[0]);
+    return '';
+  };
+
+  const [showRetroPanel, setShowRetroPanel] = useState<boolean>(
+    () => unconfirmedRecentDays.length > 0 && todayIso > startDate
+  );
+  const [retroDate, setRetroDate] = useState<string>(defaultRetroDate);
+  const [retroStartPage, setRetroStartPage] = useState<string>(() =>
+    getSuggestedPageForDate(defaultRetroDate)
+  );
+  const [retroEndPage, setRetroEndPage] = useState<string>('');
+  const [retroRating, setRetroRating] = useState<TaskRating>('perfect');
+  const [retroNote, setRetroNote] = useState<string>('');
+  const [retroError, setRetroError] = useState<string | null>(null);
+
+  const handleRetroDateChange = (nextDate: string) => {
+    setRetroDate(nextDate);
+    setRetroError(null);
+    const suggested = getSuggestedPageForDate(nextDate);
+    if (suggested) {
+      setRetroStartPage(suggested);
+      setRetroEndPage('');
+    }
+  };
+
+  const handleQuickConfirmDay = (day: PlannedDay, rating: TaskRating = 'perfect') => {
+    const pages =
+      day.sabaqPage !== null
+        ? [day.sabaqPage]
+        : day.weeklyReviewPages.length > 0
+        ? day.weeklyReviewPages
+        : day.fullReviewPages.length > 0
+        ? day.fullReviewPages
+        : [];
+    onConfirmPastWork(
+      day.date,
+      pages,
+      rating,
+      day.date === yesterdayIso ? 'تأكيد بعد منتصف الليل' : 'تأكيد يدوي ليوم فائت'
+    );
+  };
+
+  const handleSubmitRetroForm = (e: FormEvent) => {
+    e.preventDefault();
+    if (!retroDate || retroDate < startDate || retroDate > todayIso) {
+      setRetroError('يرجى اختيار تاريخ بين بداية الخطة وتاريخ اليوم.');
+      return;
+    }
+    const trimmedStart = retroStartPage.trim();
+    const trimmedEnd = retroEndPage.trim();
+    let pages: number[] = [];
+
+    if (trimmedStart !== '') {
+      const startNum = Number(trimmedStart);
+      if (!Number.isInteger(startNum) || startNum < 1 || startNum > TOTAL_MUSHAF_PAGES) {
+        setRetroError('رقم الصفحة يجب أن يكون بين ١ و ٦٠٤.');
+        return;
+      }
+      if (trimmedEnd !== '') {
+        const endNum = Number(trimmedEnd);
+        if (!Number.isInteger(endNum) || endNum < startNum || endNum > TOTAL_MUSHAF_PAGES) {
+          setRetroError('رقم صفحة النهاية يجب أن يكون أكبر من أو يساوي صفحة البداية وحتى ٦٠٤.');
+          return;
+        }
+        pages = buildPageRange(startNum, endNum);
+      } else {
+        pages = [startNum];
+      }
+    }
+
+    setRetroError(null);
+    onConfirmPastWork(
+      retroDate,
+      pages,
+      retroRating,
+      retroNote.trim() || (retroDate < todayIso ? 'تأكيد بعد منتصف الليل' : 'تأكيد يدوي')
+    );
+    setRetroEndPage('');
+    setRetroNote('');
+  };
+
   const phaseLabel =
     plannedDay?.phase === 'full_review'
       ? 'مرحلة المراجعة الشاملة (الأشهر ٣١–٣٦)'
@@ -310,27 +430,38 @@ export function TodayScreen({
   return (
     <div className="space-y-6">
       {/* Top Overview Strip */}
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 md:p-6">
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs text-[var(--text-muted)]">
-              {formatArabicDate(todayIso)}
-              {plannedDay ? ` · الشهر ${plannedDay.monthNumber} من ٣٦` : ''}
-            </p>
-            <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
-              ورد اليوم
-            </h1>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">{phaseLabel}</p>
+      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 md:p-6">
+        <HeroCornerArabesque className="absolute -left-6 -top-6 h-48 w-48 text-[var(--accent)] opacity-[0.22]" />
+        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <TodayPageBadge
+              focus={todayFocus}
+              variant="hero"
+              testId="today-hero-page-badge"
+            />
+            <div>
+              <p className="text-xs text-[var(--text-muted)]">
+                {formatArabicDate(todayIso)}
+                {plannedDay ? ` · الشهر ${plannedDay.monthNumber} من ٣٦` : ''}
+              </p>
+              <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
+                ورد اليوم
+              </h1>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">{phaseLabel}</p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-5 sm:gap-6">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--gold-soft)] text-[var(--gold)]">
                 <Flame className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xs text-[var(--text-muted)]">سلسلة الاستمرار</p>
-                <p className="text-lg font-semibold tabular-nums text-[var(--text-primary)]">
+                <p
+                  data-testid="today-streak-value"
+                  className="text-lg font-semibold tabular-nums text-[var(--text-primary)]"
+                >
                   {streak} يوم
                 </p>
               </div>
@@ -356,6 +487,68 @@ export function TodayScreen({
             </div>
           </div>
         </div>
+        <ArabesqueDivider className="relative z-10 mt-5" />
+      </section>
+
+      {/* Remaining Days to Finish Memorization */}
+      <section
+        data-testid="today-remaining-days-card"
+        className="card-suggestion rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+      >
+        <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--accent)] opacity-[0.20]" />
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+              <CalendarClock className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)]">
+                <ThemeEmblem className="h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
+                <span>الأيام المتبقية لإنهاء الحفظ</span>
+              </p>
+              <div className="mt-1 flex flex-wrap items-baseline gap-2.5">
+                <p
+                  data-testid="today-remaining-memorization-days"
+                  className="text-2xl font-bold tabular-nums text-[var(--text-primary)]"
+                >
+                  {memorizedCount >= TOTAL_MUSHAF_PAGES
+                    ? 'تم إنهاء الحفظ بفضل الله'
+                    : `${timeline.daysRemainingToMemorization} يوم`}
+                </p>
+                {memorizedCount < TOTAL_MUSHAF_PAGES && (
+                  <span className="rounded-lg bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium tabular-nums text-[var(--accent)]">
+                    موعد الختم: {formatShortArabicDate(timeline.memorizationEndDate)}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                {memorizedCount >= TOTAL_MUSHAF_PAGES
+                  ? `متبقي لإنهاء التثبيت والمراجعة الشاملة: ${timeline.daysRemainingToConsolidation} يوم (حتى ${formatShortArabicDate(timeline.consolidationEndDate)})`
+                  : `المتبقي من المصحف: ${TOTAL_MUSHAF_PAGES - memorizedCount} صفحة · ${timeline.remainingSabaqDays} يوم حفظ مجدول`}
+              </p>
+            </div>
+          </div>
+
+          <div className="w-full shrink-0 sm:w-52">
+            <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+              <span>إنجاز صفحات الحفظ</span>
+              <span className="font-semibold tabular-nums text-[var(--text-primary)]">
+                {Math.round((memorizedCount / TOTAL_MUSHAF_PAGES) * 100)}%
+              </span>
+            </div>
+            <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-[var(--bg-subtle)]">
+              <div
+                className="h-full rounded-full bg-[var(--accent)] transition-all duration-500"
+                style={{
+                  width: `${Math.min(100, Math.round((memorizedCount / TOTAL_MUSHAF_PAGES) * 100))}%`,
+                }}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] tabular-nums text-[var(--text-muted)]">
+              {memorizedCount} من {TOTAL_MUSHAF_PAGES} صفحة
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* Gentle Warning if > 3 pages behind */}
@@ -376,6 +569,255 @@ export function TodayScreen({
               </p>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* After-Midnight / Manual & Numeric Retroactive Work Confirmation */}
+      {todayIso >= startDate && (
+        <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                <History className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                  تأكيد الإنجاز بعد منتصف الليل / الإدخال اليدوي والرقمي
+                </h2>
+                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                  نسيت تأكيد إنهاء مهامك قبل منتصف الليل؟ أكّد العمل الآن برقم الصفحة أو يدوياً ليُحتسب في سلسلة الاستمرار.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowRetroPanel((v) => !v)}
+              aria-expanded={showRetroPanel}
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 text-xs font-medium whitespace-nowrap text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)]"
+            >
+              <span>{showRetroPanel ? 'إخفاء اللوحة' : 'تأكيد يوم فائت / إدخال رقمي'}</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${showRetroPanel ? 'rotate-180' : ''}`}
+              />
+            </button>
+          </div>
+
+          <AnimatePresence initial={false}>
+            {showRetroPanel && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="mt-4 space-y-5 border-t border-[var(--border-hairline)] pt-4">
+                  {/* Quick confirmation for recent unconfirmed days (Yesterday highlighted) */}
+                  {unconfirmedRecentDays.length > 0 && (
+                    <div className="space-y-2.5">
+                      <p className="text-xs font-semibold text-[var(--text-secondary)]">
+                        أيام قريبة لم تُؤكَّد بعد (تأكيد يدوي سريع):
+                      </p>
+                      <div className="grid gap-2.5 sm:grid-cols-2">
+                        {unconfirmedRecentDays.slice(0, 4).map((d) => {
+                          const isYesterday = d.date === yesterdayIso;
+                          const targetLabel =
+                            d.sabaqPage !== null
+                              ? `صفحة ${d.sabaqPage} (الجزء ${d.sabaqJuz})`
+                              : d.isFriday
+                              ? 'مراجعة الأسبوع'
+                              : d.fullReviewJuz
+                              ? `الجزء ${d.fullReviewJuz}`
+                              : 'مراجعة وتثبيت';
+                          return (
+                            <div
+                              key={d.date}
+                              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
+                                isYesterday
+                                  ? 'border-[var(--accent)]/40 bg-[var(--accent-soft)]/35'
+                                  : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)]'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  {isYesterday && (
+                                    <span className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-ink)]">
+                                      أمس
+                                    </span>
+                                  )}
+                                  <span className="text-xs font-semibold text-[var(--text-primary)]">
+                                    {formatShortArabicDate(d.date)}
+                                  </span>
+                                </div>
+                                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                                  {targetLabel}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickConfirmDay(d, 'perfect')}
+                                  className="btn-accent-glow inline-flex h-9 items-center gap-1 rounded-xl bg-[var(--accent)] px-3 text-xs font-medium whitespace-nowrap text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                  <span>{isYesterday ? 'تأكيد يوم أمس' : 'تأكيد اليوم'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetroDateChange(d.date)}
+                                  className="inline-flex h-9 items-center rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 text-xs font-medium whitespace-nowrap text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                >
+                                  تخصيص
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Numeric + Manual Confirmation Form */}
+                  <form
+                    onSubmit={handleSubmitRetroForm}
+                    className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-4"
+                  >
+                    <p className="text-xs font-semibold text-[var(--text-primary)]">
+                      إدخال رقمي ويدوي مخصص (تحديد التاريخ ورقم الصفحة)
+                    </p>
+
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div>
+                        <label
+                          htmlFor="retro-date-input"
+                          className="block text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          تاريخ الإنجاز
+                        </label>
+                        <input
+                          id="retro-date-input"
+                          type="date"
+                          min={startDate}
+                          max={todayIso}
+                          value={retroDate}
+                          onChange={(e) => handleRetroDateChange(e.target.value)}
+                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="retro-start-page"
+                          className="block text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          من صفحة (إدخال رقمي ١–٦٠٤)
+                        </label>
+                        <input
+                          id="retro-start-page"
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={TOTAL_MUSHAF_PAGES}
+                          value={retroStartPage}
+                          onChange={(e) => {
+                            setRetroStartPage(e.target.value);
+                            setRetroError(null);
+                          }}
+                          placeholder="مثال: 15"
+                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="retro-end-page"
+                          className="block text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          إلى صفحة (اختياري)
+                        </label>
+                        <input
+                          id="retro-end-page"
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={TOTAL_MUSHAF_PAGES}
+                          value={retroEndPage}
+                          onChange={(e) => {
+                            setRetroEndPage(e.target.value);
+                            setRetroError(null);
+                          }}
+                          placeholder="صفحة واحدة"
+                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="block text-xs font-medium text-[var(--text-secondary)]">
+                          تقييم الإتقان
+                        </span>
+                        <div className="mt-1 grid grid-cols-3 gap-1.5">
+                          {(['perfect', 'hesitated', 'mistakes'] as TaskRating[]).map((r) => {
+                            const selected = retroRating === r;
+                            return (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => setRetroRating(r)}
+                                aria-pressed={selected}
+                                className={`h-10 rounded-xl border text-xs font-medium transition-colors ${
+                                  selected
+                                    ? `${RATING_LABELS[r].tone} ring-1 ring-current`
+                                    : 'border-[var(--border-hairline)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                }`}
+                              >
+                                {RATING_LABELS[r].label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <div className="flex-1">
+                        <label
+                          htmlFor="retro-note-input"
+                          className="block text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          ملاحظة يدوية (اختياري)
+                        </label>
+                        <input
+                          id="retro-note-input"
+                          type="text"
+                          value={retroNote}
+                          onChange={(e) => setRetroNote(e.target.value)}
+                          placeholder="مثال: أتممت الحفظ والمراجعة قبل الفجر وتأخرت عن تسجيله"
+                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                        />
+                      </div>
+
+                      <motion.button
+                        type="submit"
+                        whileTap={{ scale: 0.97 }}
+                        className="btn-accent-glow inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-medium whitespace-nowrap text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>تأكيد واحتساب في السلسلة</span>
+                      </motion.button>
+                    </div>
+
+                    {retroError && (
+                      <p role="alert" className="mt-2.5 text-xs font-medium text-[var(--danger)]">
+                        {retroError}
+                      </p>
+                    )}
+                  </form>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </section>
       )}
 
@@ -646,12 +1088,19 @@ export function TodayScreen({
         </section>
       )}
 
-      {/* Daily Dua & Daily Tip */}
+      {/* Daily Dua & Daily Tip Suggestion Cards */}
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="flex flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
-          <div>
+        <section
+          data-testid="today-dua-suggestion-card"
+          className="card-suggestion flex flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+        >
+          <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--gold)] opacity-[0.24]" />
+          <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-              <span>دعاء اليوم من القرآن</span>
+              <span className="inline-flex items-center gap-1.5 font-medium text-[var(--gold)]">
+                <ThemeEmblem className="h-4 w-4 shrink-0" />
+                <span>دعاء اليوم من القرآن</span>
+              </span>
               <span>
                 {dailyDua.surahName} · آية {dailyDua.ayahRef}
               </span>
@@ -662,7 +1111,7 @@ export function TodayScreen({
             <p className="mt-2 text-xs text-[var(--text-secondary)]">{dailyDua.occasion}</p>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-hairline)] pt-3">
+          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-hairline)] pt-3">
             <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-[var(--text-primary)]">
               <input
                 type="checkbox"
@@ -683,10 +1132,17 @@ export function TodayScreen({
           </div>
         </section>
 
-        <section className="flex flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
-          <div>
+        <section
+          data-testid="today-tip-suggestion-card"
+          className="card-suggestion flex flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+        >
+          <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--accent)] opacity-[0.22]" />
+          <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-              <span>نصيحة اليوم</span>
+              <span className="inline-flex items-center gap-1.5 font-medium text-[var(--accent)]">
+                <ThemeEmblem className="h-4 w-4 shrink-0" />
+                <span>نصيحة اليوم</span>
+              </span>
               <span>{dailyTip.categoryLabel}</span>
             </div>
             <h3 className="mt-2 text-base font-semibold text-[var(--text-primary)]">
@@ -697,7 +1153,7 @@ export function TodayScreen({
             </p>
           </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-[var(--border-hairline)] pt-3">
+          <div className="relative z-10 mt-4 flex items-center justify-between border-t border-[var(--border-hairline)] pt-3">
             <button
               type="button"
               onClick={() => onNavigate('method')}

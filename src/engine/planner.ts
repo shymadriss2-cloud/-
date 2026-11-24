@@ -111,6 +111,198 @@ export function formatShortArabicDate(iso: string): string {
   return `${day} ${ARABIC_MONTHS[month - 1]} ${year}`;
 }
 
+export function diffDays(fromIso: string, toIso: string): number {
+  const a = parseISODate(fromIso);
+  const b = parseISODate(toIso);
+  const utcA = Date.UTC(a.year, a.month - 1, a.day);
+  const utcB = Date.UTC(b.year, b.month - 1, b.day);
+  return Math.round((utcB - utcA) / (1000 * 60 * 60 * 24));
+}
+
+export interface PlanTimelineSummary {
+  startDate: string;
+  memorizationEndDate: string;
+  consolidationEndDate: string;
+  daysRemainingToMemorization: number;
+  daysRemainingToConsolidation: number;
+  remainingSabaqDays: number;
+  memorizationPercentByTime: number;
+}
+
+export function getPlanTimelineSummary(
+  calendar: PlannedDay[],
+  startDate: string,
+  referenceDate: string
+): PlanTimelineSummary {
+  let lastSabaqDate: string | null = null;
+  let remainingSabaqDays = 0;
+
+  for (const day of calendar) {
+    if (day.sabaqPage !== null) {
+      lastSabaqDate = day.date;
+      if (day.date >= referenceDate) {
+        remainingSabaqDays++;
+      }
+    }
+  }
+
+  const fallbackPlanEnd = addDays(addMonths(startDate, 36), -1);
+  const memorizationEndDate = lastSabaqDate ?? addDays(addMonths(startDate, 30), -1);
+  const consolidationEndDate =
+    calendar.length > 0 ? calendar[calendar.length - 1].date : fallbackPlanEnd;
+
+  const daysRemainingToMemorization = Math.max(0, diffDays(referenceDate, memorizationEndDate));
+  const daysRemainingToConsolidation = Math.max(0, diffDays(referenceDate, consolidationEndDate));
+
+  const totalMemSpan = Math.max(1, diffDays(startDate, memorizationEndDate));
+  const elapsedMemDays = Math.min(totalMemSpan, Math.max(0, diffDays(startDate, referenceDate)));
+  const memorizationPercentByTime = Math.round((elapsedMemDays / totalMemSpan) * 100);
+
+  return {
+    startDate,
+    memorizationEndDate,
+    consolidationEndDate,
+    daysRemainingToMemorization,
+    daysRemainingToConsolidation,
+    remainingSabaqDays,
+    memorizationPercentByTime,
+  };
+}
+
+export interface TodayPageFocusStatus {
+  mode: 'sabaq' | 'friday' | 'saturday' | 'full_review' | 'consolidation' | 'none';
+  primaryPage: number | null;
+  secondaryPages: number[];
+  juz: number | null;
+  isCompleted: boolean;
+  areAllTasksDone: boolean;
+  completedTaskCount: number;
+  totalTaskCount: number;
+}
+
+export function getTodayPageFocusStatus(
+  plannedDay: PlannedDay | null,
+  dayLog: DayLog | undefined,
+  pageProgress: Record<number, PageProgress>,
+  missedPages: MissedPageInfo[] = []
+): TodayPageFocusStatus {
+  if (!plannedDay) {
+    return {
+      mode: 'none',
+      primaryPage: null,
+      secondaryPages: [],
+      juz: null,
+      isCompleted: false,
+      areAllTasksDone: false,
+      completedTaskCount: 0,
+      totalTaskCount: 0,
+    };
+  }
+
+  if (plannedDay.phase === 'full_review') {
+    const completed = Boolean(dayLog?.tasks.full_review?.completed);
+    return {
+      mode: 'full_review',
+      primaryPage: plannedDay.fullReviewPages[0] ?? null,
+      secondaryPages: plannedDay.fullReviewPages,
+      juz: plannedDay.fullReviewJuz,
+      isCompleted: completed,
+      areAllTasksDone: completed,
+      completedTaskCount: completed ? 1 : 0,
+      totalTaskCount: 1,
+    };
+  }
+
+  if (plannedDay.isSaturday) {
+    const caughtUp = Boolean(dayLog?.caughtUpPages && dayLog.caughtUpPages.length > 0);
+    const done =
+      missedPages.length === 0 ? Boolean(dayLog?.manualConfirmed || caughtUp) : false;
+    return {
+      mode: 'saturday',
+      primaryPage: missedPages[0]?.page ?? null,
+      secondaryPages: missedPages.map((m) => m.page),
+      juz: missedPages[0]?.juz ?? null,
+      isCompleted: done,
+      areAllTasksDone: done,
+      completedTaskCount: done ? 1 : 0,
+      totalTaskCount: missedPages.length > 0 ? 1 : 0,
+    };
+  }
+
+  if (plannedDay.isFriday) {
+    const activeKinds: TaskKind[] = [];
+    if (plannedDay.weeklyReviewPages.length > 0) activeKinds.push('friday_review');
+    if (plannedDay.sabqiPages.length > 0) activeKinds.push('sabqi');
+    if (plannedDay.manzilPages.length > 0) activeKinds.push('manzil');
+    const completedTaskCount = activeKinds.filter((k) => Boolean(dayLog?.tasks[k]?.completed)).length;
+    const totalTaskCount = activeKinds.length;
+    const fridayReviewDone = Boolean(dayLog?.tasks.friday_review?.completed);
+    const areAllTasksDone = totalTaskCount > 0 && completedTaskCount === totalTaskCount;
+    const primaryPage = plannedDay.weeklyReviewPages[0] ?? null;
+
+    return {
+      mode: 'friday',
+      primaryPage,
+      secondaryPages: plannedDay.weeklyReviewPages,
+      juz: primaryPage ? getJuzForPage(primaryPage) : null,
+      isCompleted: fridayReviewDone || areAllTasksDone,
+      areAllTasksDone,
+      completedTaskCount,
+      totalTaskCount,
+    };
+  }
+
+  if (plannedDay.sabaqPage !== null) {
+    const sabaqDone =
+      Boolean(dayLog?.tasks.sabaq?.completed) ||
+      ((pageProgress[plannedDay.sabaqPage]?.status ?? 'not_started') !== 'not_started');
+    const sabqiDone = Boolean(dayLog?.tasks.sabqi?.completed);
+    const manzilDone = Boolean(dayLog?.tasks.manzil?.completed);
+
+    let totalTaskCount = 1;
+    let completedTaskCount = sabaqDone ? 1 : 0;
+    if (plannedDay.sabqiPages.length > 0) {
+      totalTaskCount++;
+      if (sabqiDone) completedTaskCount++;
+    }
+    if (plannedDay.manzilPages.length > 0) {
+      totalTaskCount++;
+      if (manzilDone) completedTaskCount++;
+    }
+
+    const areAllTasksDone = completedTaskCount === totalTaskCount;
+    return {
+      mode: 'sabaq',
+      primaryPage: plannedDay.sabaqPage,
+      secondaryPages: [],
+      juz: plannedDay.sabaqJuz,
+      isCompleted: sabaqDone,
+      areAllTasksDone,
+      completedTaskCount,
+      totalTaskCount,
+    };
+  }
+
+  // Consolidation phase (Sun-Thu after 604 pages memorized)
+  const activeKinds: TaskKind[] = [];
+  if (plannedDay.sabqiPages.length > 0) activeKinds.push('sabqi');
+  if (plannedDay.manzilPages.length > 0) activeKinds.push('manzil');
+  const completedTaskCount = activeKinds.filter((k) => Boolean(dayLog?.tasks[k]?.completed)).length;
+  const totalTaskCount = activeKinds.length;
+  const areAllTasksDone = totalTaskCount > 0 && completedTaskCount === totalTaskCount;
+
+  return {
+    mode: 'consolidation',
+    primaryPage: plannedDay.sabqiPages[0] ?? null,
+    secondaryPages: plannedDay.sabqiPages,
+    juz: plannedDay.sabqiPages[0] ? getJuzForPage(plannedDay.sabqiPages[0]) : null,
+    isCompleted: areAllTasksDone,
+    areAllTasksDone,
+    completedTaskCount,
+    totalTaskCount,
+  };
+}
+
 function takeRotatingPages(
   pool: number[],
   count: number,
@@ -386,11 +578,13 @@ export function applyRatingToPages(
   pages: number[],
   rating: TaskRating,
   kind: TaskKind,
-  timestampIso: string
+  timestampIso: string,
+  memorizedAtOverride?: string
 ): Record<number, PageProgress> {
   if (pages.length === 0) return prev;
   const next = { ...prev };
   for (const page of pages) {
+    if (page < 1 || page > TOTAL_MUSHAF_PAGES) continue;
     const existing = next[page] ?? {
       page,
       status: 'not_started',
@@ -410,7 +604,7 @@ export function applyRatingToPages(
       status: nextStatus,
       lastRating: rating,
       lastReviewedAt: timestampIso,
-      memorizedAt: existing.memorizedAt ?? timestampIso,
+      memorizedAt: existing.memorizedAt ?? memorizedAtOverride ?? timestampIso,
       extraReviewPending: rating === 'mistakes',
       reviewCount: existing.reviewCount + 1,
     };
@@ -457,9 +651,165 @@ export function getJuzCompletionStats(
   };
 }
 
+export function hasDayActivity(log?: DayLog): boolean {
+  if (!log) return false;
+  const anyTask = Object.values(log.tasks || {}).some((t) => t?.completed);
+  return Boolean(
+    anyTask ||
+      log.recitedToTeacher ||
+      (log.caughtUpPages && log.caughtUpPages.length > 0) ||
+      log.manualConfirmed
+  );
+}
+
+export function getTotalActiveDays(dayLogs: Record<string, DayLog>): number {
+  let count = 0;
+  for (const log of Object.values(dayLogs)) {
+    if (hasDayActivity(log)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+export function buildPageRange(startPage: number, endPage?: number | null): number[] {
+  if (!Number.isFinite(startPage)) return [];
+  const start = Math.trunc(startPage);
+  if (start < 1 || start > TOTAL_MUSHAF_PAGES) return [];
+  if (endPage === undefined || endPage === null || !Number.isFinite(endPage)) {
+    return [start];
+  }
+  const end = Math.trunc(endPage);
+  if (end < start || end > TOTAL_MUSHAF_PAGES) {
+    return [start];
+  }
+  const pages: number[] = [];
+  for (let p = start; p <= end; p++) {
+    pages.push(p);
+  }
+  return pages;
+}
+
+export function getUnconfirmedRecentPastDays(
+  calendar: PlannedDay[],
+  dayLogs: Record<string, DayLog>,
+  referenceDate: string,
+  maxLookbackDays = 7
+): PlannedDay[] {
+  const earliest = addDays(referenceDate, -maxLookbackDays);
+  const recent: PlannedDay[] = [];
+  for (const day of calendar) {
+    if (day.date >= referenceDate) break;
+    if (day.date < earliest) continue;
+    if (day.isSaturday && day.phase !== 'full_review') continue;
+    if (!hasDayActivity(dayLogs[day.date])) {
+      recent.push(day);
+    }
+  }
+  return recent.reverse();
+}
+
+export interface ConfirmPastDayParams {
+  dayLogs: Record<string, DayLog>;
+  pageProgress: Record<number, PageProgress>;
+  startDate: string;
+  todayIso: string;
+  targetDate: string;
+  pages: number[];
+  rating: TaskRating;
+  note?: string;
+  plannedDay?: PlannedDay | null;
+  nowIso: string;
+}
+
+export function confirmPastDayRecord(params: ConfirmPastDayParams): {
+  dayLogs: Record<string, DayLog>;
+  pageProgress: Record<number, PageProgress>;
+  appliedPages: number[];
+} {
+  const {
+    dayLogs,
+    pageProgress,
+    startDate,
+    todayIso,
+    targetDate,
+    pages,
+    rating,
+    note,
+    plannedDay,
+    nowIso,
+  } = params;
+
+  if (targetDate < startDate || targetDate > todayIso) {
+    return { dayLogs, pageProgress, appliedPages: [] };
+  }
+
+  const appliedPages = Array.from(
+    new Set(
+      pages
+        .map((p) => Math.trunc(p))
+        .filter((p) => Number.isFinite(p) && p >= 1 && p <= TOTAL_MUSHAF_PAGES)
+    )
+  ).sort((a, b) => a - b);
+
+  const taskKind: TaskKind =
+    plannedDay?.phase === 'full_review'
+      ? 'full_review'
+      : plannedDay?.isFriday
+      ? 'friday_review'
+      : 'sabaq';
+
+  const existingLog = dayLogs[targetDate] ?? { date: targetDate, tasks: {} };
+  const mergedManualPages = Array.from(
+    new Set([...(existingLog.manualPages ?? []), ...appliedPages])
+  ).sort((a, b) => a - b);
+
+  const trimmedNote = note?.trim();
+  const isRetroactive = targetDate < todayIso;
+
+  const nextLog: DayLog = {
+    ...existingLog,
+    manualConfirmed: true,
+    manualPages: mergedManualPages,
+    manualNote: trimmedNote || existingLog.manualNote,
+    confirmedAfterMidnightAt: isRetroactive ? nowIso : existingLog.confirmedAfterMidnightAt,
+    tasks: {
+      ...existingLog.tasks,
+      [taskKind]: {
+        completed: true,
+        rating,
+        completedAt: nowIso,
+        durationSeconds: existingLog.tasks[taskKind]?.durationSeconds ?? 0,
+        retroactive: isRetroactive,
+      },
+    },
+  };
+
+  const nextProgress =
+    appliedPages.length > 0
+      ? applyRatingToPages(
+          pageProgress,
+          appliedPages,
+          rating,
+          taskKind,
+          nowIso,
+          targetDate
+        )
+      : pageProgress;
+
+  return {
+    dayLogs: {
+      ...dayLogs,
+      [targetDate]: nextLog,
+    },
+    pageProgress: nextProgress,
+    appliedPages,
+  };
+}
+
 /**
  * Computes current streak of consecutive days ending on referenceDate (or yesterday if today isn't logged yet)
- * where at least one task was completed (or Saturday rest day if no tasks were missed).
+ * where at least one task or post-midnight manual confirmation was completed (or Saturday rest day if no tasks were missed).
  */
 export function computeCurrentStreak(
   dayLogs: Record<string, DayLog>,
@@ -468,22 +818,15 @@ export function computeCurrentStreak(
 ): number {
   if (referenceDate < startDate) return 0;
 
-  const hasActivity = (date: string): boolean => {
-    const log = dayLogs[date];
-    if (!log) return false;
-    const anyTask = Object.values(log.tasks || {}).some((t) => t?.completed);
-    return Boolean(anyTask || log.recitedToTeacher || (log.caughtUpPages && log.caughtUpPages.length > 0));
-  };
-
   let cursor = referenceDate;
-  if (!hasActivity(cursor)) {
+  if (!hasDayActivity(dayLogs[cursor])) {
     cursor = addDays(referenceDate, -1);
   }
 
   let streak = 0;
   while (cursor >= startDate) {
     const dow = getDayOfWeek(cursor);
-    if (hasActivity(cursor)) {
+    if (hasDayActivity(dayLogs[cursor])) {
       streak++;
       cursor = addDays(cursor, -1);
     } else if (dow === 6 && streak > 0) {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { JUZ_NAMES_AR, JUZ_RANGES, TOTAL_MUSHAF_PAGES } from '../engine/mushaf';
+import { JUZ_BEGINNINGS, JUZ_NAMES_AR, JUZ_RANGES, TOTAL_MUSHAF_PAGES } from '../engine/mushaf';
 import { getExtraReviewPages, getMemorizedStats } from '../engine/planner';
 import type { PageProgress, PageStatus } from '../types/plan';
 
@@ -51,7 +51,7 @@ export function MushafMapScreen({ pageProgress, onSetPageStatus }: MushafMapScre
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs text-[var(--text-muted)]">
@@ -175,15 +175,24 @@ export function MushafMapScreen({ pageProgress, onSetPageStatus }: MushafMapScre
           }
           if (pages.length === 0) return null;
 
+          const beginning = JUZ_BEGINNINGS[range.juz];
+
           return (
             <section
               key={range.juz}
               className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4"
             >
-              <div className="mb-3 flex items-center justify-between text-xs">
-                <h3 className="font-semibold text-[var(--text-primary)]">
-                  {JUZ_NAMES_AR[range.juz]}
-                </h3>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div>
+                  <h3 className="font-semibold text-[var(--text-primary)]">
+                    {JUZ_NAMES_AR[range.juz]}
+                  </h3>
+                  {beginning && (
+                    <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                      بداية الجزء: {beginning.surah} {beginning.ayah} · {beginning.opening}
+                    </p>
+                  )}
+                </div>
                 <span className="tabular-nums text-[var(--text-muted)]">
                   صفحات {range.startPage}–{range.endPage}
                 </span>

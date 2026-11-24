@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { CelebrationModal } from './components/CelebrationModal';
 import { DuasScreen } from './components/DuasScreen';
+import { ThemePaletteProvider } from './components/IslamicOrnament';
 import { MethodScreen } from './components/MethodScreen';
 import { MushafMapScreen } from './components/MushafMapScreen';
 import { OfflineIndicator } from './components/OfflineIndicator';
@@ -26,18 +27,22 @@ import { SettingsScreen } from './components/SettingsScreen';
 import { SetupScreen } from './components/SetupScreen';
 import { StatsScreen } from './components/StatsScreen';
 import { TipsScreen } from './components/TipsScreen';
+import { TodayPageBadge } from './components/TodayPageBadge';
 import { TodayScreen } from './components/TodayScreen';
 import { COLOR_PALETTES } from './data/palettes';
 import {
   applyRatingToPages,
   computeCurrentStreak,
+  confirmPastDayRecord,
   formatShortArabicDate,
   generatePlanCalendar,
   getCompletedJuzList,
   getExtraReviewPages,
   getMemorizedStats,
   getMissedPages,
+  getPlanTimelineSummary,
   getTodayLocalISO,
+  getTodayPageFocusStatus,
 } from './engine/planner';
 import { formatHHMM, getDueReminders } from './engine/reminders';
 import type {
@@ -174,6 +179,25 @@ export default function App() {
     [state.pageProgress]
   );
 
+  const timeline = useMemo(
+    () =>
+      state.plan
+        ? getPlanTimelineSummary(calendar, state.plan.startDate, todayIso)
+        : null,
+    [calendar, state.plan, todayIso]
+  );
+
+  const todayFocus = useMemo(
+    () =>
+      getTodayPageFocusStatus(
+        plannedToday,
+        state.dayLogs[todayIso],
+        state.pageProgress,
+        missedPages
+      ),
+    [plannedToday, state.dayLogs, todayIso, state.pageProgress, missedPages]
+  );
+
   const checkAndTriggerJuzCelebration = (
     nextProgress: AppState['pageProgress'],
     alreadyCelebrated: number[]
@@ -294,6 +318,46 @@ export default function App() {
     setToastMsg(`تم استدراك صفحة ${page} بنجاح`);
   };
 
+  const handleConfirmPastWork = (
+    targetDate: string,
+    pages: number[],
+    rating: TaskRating,
+    note?: string
+  ) => {
+    if (!state.plan) return;
+    if (targetDate < state.plan.startDate || targetDate > todayIso) return;
+    const nowIso = new Date().toISOString();
+    const targetPlanned = calendar.find((d) => d.date === targetDate) ?? null;
+    setState((prev) => {
+      if (!prev.plan) return prev;
+      const result = confirmPastDayRecord({
+        dayLogs: prev.dayLogs,
+        pageProgress: prev.pageProgress,
+        startDate: prev.plan.startDate,
+        todayIso,
+        targetDate,
+        pages,
+        rating,
+        note,
+        plannedDay: targetPlanned,
+        nowIso,
+      });
+      const nextCelebrated = checkAndTriggerJuzCelebration(
+        result.pageProgress,
+        prev.celebratedJuz
+      );
+      return {
+        ...prev,
+        dayLogs: result.dayLogs,
+        pageProgress: result.pageProgress,
+        celebratedJuz: nextCelebrated,
+      };
+    });
+    setToastMsg(
+      `تم تأكيد إنجاز ${formatShortArabicDate(targetDate)} واحتسابه في سلسلة الاستمرار`
+    );
+  };
+
   const handleSetPageStatus = (page: number, status: PageStatus) => {
     const nowIso = new Date().toISOString();
     setState((prev) => {
@@ -341,6 +405,17 @@ export default function App() {
 
   const handleUpdateMethodProgress = (next: MethodProgress) => {
     setState((prev) => ({ ...prev, methodProgress: next }));
+  };
+
+  const handleUpdateMethodDuration = (stepId: number, minutes: number) => {
+    const clamped = Math.min(120, Math.max(1, Math.round(minutes)));
+    setState((prev) => ({
+      ...prev,
+      methodDurations: {
+        ...(prev.methodDurations ?? {}),
+        [stepId]: clamped,
+      },
+    }));
   };
 
   const handleToggleDarkMode = () => {
@@ -393,13 +468,14 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] pb-20 lg:pb-0">
+      <ThemePaletteProvider value={state.accentColor}>
+        <div className="app-shell-wrap min-h-screen text-[var(--text-primary)] pb-20 lg:pb-0">
         <div className="mx-auto flex min-h-screen max-w-[1440px]">
           {/* Desktop Right RTL Sidebar */}
-          <aside className="hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[var(--bg-surface)] lg:flex lg:flex-col lg:justify-between">
+          <aside className="card-elevated relative z-10 hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[var(--bg-sidebar)] lg:flex lg:flex-col lg:justify-between">
             <div className="p-5">
               <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] pb-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] shadow-xs">
                   <BookOpen className="h-5 w-5" />
                 </div>
                 <span className="font-display text-xl font-bold whitespace-nowrap text-[var(--text-primary)]">
@@ -407,7 +483,17 @@ export default function App() {
                 </span>
               </div>
 
-              <nav aria-label="التنقل الرئيسي" className="mt-5 space-y-1">
+              {/* Prominent Today's Page Badge First in Sidebar */}
+              <div className="mt-4">
+                <TodayPageBadge
+                  focus={todayFocus}
+                  variant="sidebar"
+                  testId="sidebar-today-page-badge"
+                  onClick={() => setActiveScreen('today')}
+                />
+              </div>
+
+              <nav aria-label="التنقل الرئيسي" className="mt-4 space-y-1">
                 {NAV_ITEMS.map((item) => {
                   const Icon = item.icon;
                   const active = activeScreen === item.id;
@@ -427,7 +513,7 @@ export default function App() {
                         <motion.span
                           layoutId="sidebar-active-pill"
                           transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                          className="absolute inset-0 rounded-xl bg-[var(--accent-soft)]"
+                          className="card-elevated absolute inset-0 rounded-xl bg-[var(--accent-soft)]"
                         />
                       )}
                       <Icon className="relative z-10 h-4 w-4 shrink-0" />
@@ -442,14 +528,14 @@ export default function App() {
               {/* Quick Dark Mode & Color Swatches */}
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-[var(--text-secondary)]">المظهر واللون</span>
+                  <span className="font-medium text-[var(--text-secondary)]">الثيم والمظهر</span>
                   <motion.button
                     type="button"
                     whileTap={{ scale: 0.94 }}
                     onClick={handleToggleDarkMode}
                     aria-label={state.darkMode ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي'}
                     aria-pressed={state.darkMode}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-2.5 text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)]"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-2.5 text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)]"
                   >
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.span
@@ -467,10 +553,11 @@ export default function App() {
                   </motion.button>
                 </div>
 
-                <div className="flex items-center gap-2" role="group" aria-label="اختيار لون الواجهة السريع">
+                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="اختيار لون الواجهة السريع">
                   {COLOR_PALETTES.map((p) => {
                     const active = state.accentColor === p.id;
-                    const color = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    const accent = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    const canvas = state.darkMode ? p.darkCanvas : p.lightCanvas;
                     return (
                       <motion.button
                         key={p.id}
@@ -482,10 +569,12 @@ export default function App() {
                         title={p.title}
                         className={`h-6 w-6 rounded-full border transition-transform ${
                           active
-                            ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-surface)]'
+                            ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-sidebar)]'
                             : 'border-[var(--border-hairline)] hover:scale-105'
                         }`}
-                        style={{ backgroundColor: color }}
+                        style={{
+                          background: `linear-gradient(135deg, ${accent} 55%, ${canvas} 55%)`,
+                        }}
                       />
                     );
                   })}
@@ -505,12 +594,27 @@ export default function App() {
           </aside>
 
         {/* Main Viewport */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative z-10 flex min-w-0 flex-1 flex-col">
           {/* Compact Top Header (<= 56px on mobile) */}
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-[var(--border-hairline)] bg-[var(--bg-surface)]/95 px-4 backdrop-blur-md lg:h-16 lg:px-8">
+          <header className="card-elevated sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--bg-header)] px-4 backdrop-blur-md lg:h-16 lg:px-8">
             <div className="flex items-center gap-2 lg:hidden">
               <BookOpen className="h-5 w-5 text-[var(--accent)]" />
               <span className="font-display text-lg font-bold whitespace-nowrap">مِحراب الحفظ</span>
+              {todayFocus.primaryPage !== null && (
+                <button
+                  type="button"
+                  onClick={() => setActiveScreen('today')}
+                  data-testid="mobile-header-page-pill"
+                  data-completed={todayFocus.isCompleted ? 'true' : 'false'}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors ${
+                    todayFocus.isCompleted
+                      ? 'bg-[var(--accent)] text-[var(--accent-ink)]'
+                      : 'border border-[var(--border-hairline)] bg-[var(--bg-surface)] text-[var(--accent)]'
+                  }`}
+                >
+                  <span>ص {todayFocus.primaryPage}</span>
+                </button>
+              )}
             </div>
 
             <span className="hidden text-sm font-semibold text-[var(--text-primary)] lg:inline">
@@ -527,7 +631,7 @@ export default function App() {
               onClick={() =>
                 setActiveScreen(activeScreen === 'method' ? 'today' : 'method')
               }
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 text-xs font-medium whitespace-nowrap text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
+              className="btn-accent-glow inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 text-xs font-medium whitespace-nowrap text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
             >
               <BookOpenCheck className="h-3.5 w-3.5" />
               <span>{activeScreen === 'method' ? 'العودة لليوم' : 'طريقة الحفظ'}</span>
@@ -543,21 +647,26 @@ export default function App() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               >
-                {activeScreen === 'today' && (
+                {activeScreen === 'today' && timeline && (
                   <TodayScreen
                     todayIso={todayIso}
                     startDate={state.plan.startDate}
+                    calendar={calendar}
                     plannedDay={plannedToday}
                     dayLog={state.dayLogs[todayIso]}
+                    dayLogs={state.dayLogs}
                     pageProgress={state.pageProgress}
                     taskTimes={state.taskTimes}
                     missedPages={missedPages}
                     extraReviewPages={extraReviewPages}
                     streak={streak}
                     memorizedCount={memorizedStats.memorizedCount}
+                    timeline={timeline}
+                    todayFocus={todayFocus}
                     verifiedDuas={state.verifiedDuas}
                     onUpdateTaskTime={handleUpdateTaskTime}
                     onCompleteTask={handleCompleteTask}
+                    onConfirmPastWork={handleConfirmPastWork}
                     onUpdateFridayTeacher={handleUpdateFridayTeacher}
                     onCatchUpPage={handleCatchUpPage}
                     onResolveExtraReview={handleResolveExtraReview}
@@ -570,9 +679,17 @@ export default function App() {
                   <MethodScreen
                     todaySabaqPage={plannedToday?.sabaqPage ?? null}
                     previousPage={previousPage}
+                    todayFocus={todayFocus}
                     progress={state.methodProgress}
+                    customDurations={state.methodDurations}
                     todayIso={todayIso}
                     onUpdateProgress={handleUpdateMethodProgress}
+                    onUpdateDuration={handleUpdateMethodDuration}
+                    onCompleteTodaySabaq={(rating) => {
+                      if (plannedToday?.sabaqPage !== null && plannedToday?.sabaqPage !== undefined) {
+                        handleCompleteTask(todayIso, 'sabaq', [plannedToday.sabaqPage], rating, 0);
+                      }
+                    }}
                   />
                 )}
 
@@ -582,6 +699,8 @@ export default function App() {
                     order={state.plan.order}
                     todayIso={todayIso}
                     pageProgress={state.pageProgress}
+                    dayLogs={state.dayLogs}
+                    onConfirmPastWork={handleConfirmPastWork}
                   />
                 )}
 
@@ -612,10 +731,11 @@ export default function App() {
                   />
                 )}
 
-                {activeScreen === 'settings' && (
+                {activeScreen === 'settings' && timeline && (
                   <SettingsScreen
                     state={state}
                     plan={state.plan}
+                    timeline={timeline}
                     onToggleDarkMode={handleToggleDarkMode}
                     onChangeAccentColor={handleChangeAccentColor}
                     onUpdateReminders={handleUpdateReminders}
@@ -632,7 +752,7 @@ export default function App() {
       {/* Mobile Bottom Tab Bar (64px) */}
       <nav
         aria-label="التنقل السفلي"
-        className="fixed right-0 bottom-0 left-0 z-30 grid h-16 grid-cols-5 border-t border-[var(--border-hairline)] bg-[var(--bg-surface)]/95 backdrop-blur-md lg:hidden"
+        className="fixed right-0 bottom-0 left-0 z-30 grid h-16 grid-cols-5 border-t border-[var(--border-hairline)] bg-[var(--bg-header)] backdrop-blur-md lg:hidden"
       >
         {mobilePrimaryTabs.map((item) => {
           const Icon = item.icon;
@@ -697,11 +817,23 @@ export default function App() {
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="mb-4 flex items-center justify-between border-b border-[var(--border-hairline)] pb-3">
-                <div className="flex items-center gap-2">
+              <div className="mb-4">
+                <TodayPageBadge
+                  focus={todayFocus}
+                  variant="sidebar"
+                  testId="mobile-drawer-today-page-badge"
+                  onClick={() => {
+                    setActiveScreen('today');
+                    setMobileMenuOpen(false);
+                  }}
+                />
+              </div>
+              <div className="mb-4 flex items-center justify-between gap-2 border-b border-[var(--border-hairline)] pb-3">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {COLOR_PALETTES.map((p) => {
                     const active = state.accentColor === p.id;
-                    const color = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    const accent = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    const canvas = state.darkMode ? p.darkCanvas : p.lightCanvas;
                     return (
                       <motion.button
                         key={p.id}
@@ -710,12 +842,14 @@ export default function App() {
                         onClick={() => handleChangeAccentColor(p.id)}
                         aria-label={`لون ${p.title}`}
                         aria-pressed={active}
-                        className={`h-7 w-7 rounded-full border transition-transform ${
+                        className={`h-6 w-6 rounded-full border transition-transform ${
                           active
                             ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-surface)]'
                             : 'border-[var(--border-hairline)]'
                         }`}
-                        style={{ backgroundColor: color }}
+                        style={{
+                          background: `linear-gradient(135deg, ${accent} 55%, ${canvas} 55%)`,
+                        }}
                       />
                     );
                   })}
@@ -779,11 +913,12 @@ export default function App() {
       <OfflineIndicator />
 
       {/* Juz Completion Celebration Modal */}
-      <CelebrationModal
-        juz={celebratingJuz}
-        onClose={() => setCelebratingJuz(null)}
-      />
-      </div>
+        <CelebrationModal
+          juz={celebratingJuz}
+          onClose={() => setCelebratingJuz(null)}
+        />
+        </div>
+      </ThemePaletteProvider>
     </MotionConfig>
   );
 }

@@ -26,6 +26,7 @@ export const DEFAULT_APP_STATE: AppState = {
   darkMode: false,
   accentColor: 'emerald',
   methodProgress: null,
+  methodDurations: {},
 };
 
 function resolveAppearanceFromLegacy(parsed: Partial<AppState>): {
@@ -63,6 +64,10 @@ export function loadAppState(): AppState {
       pageProgress: parsed.pageProgress ?? {},
       verifiedDuas: parsed.verifiedDuas ?? {},
       celebratedJuz: Array.isArray(parsed.celebratedJuz) ? parsed.celebratedJuz : [],
+      methodDurations:
+        parsed.methodDurations && typeof parsed.methodDurations === 'object'
+          ? parsed.methodDurations
+          : {},
     };
   } catch {
     return DEFAULT_APP_STATE;
@@ -78,11 +83,16 @@ export function saveAppState(state: AppState): void {
 }
 
 const THEME_COLOR_MAP: Record<AppColorPalette, { light: string; dark: string }> = {
-  emerald: { light: '#1f5e4b', dark: '#0f1614' },
-  linen: { light: '#26594c', dark: '#141310' },
-  sapphire: { light: '#1d4e89', dark: '#0e131b' },
-  amber: { light: '#8c5e1a', dark: '#14120e' },
-  plum: { light: '#5b3e73', dark: '#131018' },
+  emerald: { light: '#196b52', dark: '#0b1a15' },
+  linen: { light: '#276352', dark: '#17140e' },
+  sapphire: { light: '#1b569c', dark: '#0b1322' },
+  teal: { light: '#0d7a7e', dark: '#091a1c' },
+  olive: { light: '#536e22', dark: '#12180c' },
+  amber: { light: '#9e6212', dark: '#1a140b' },
+  sunset: { light: '#c44d36', dark: '#1d110f' },
+  plum: { light: '#664085', dark: '#150f1e' },
+  rose: { light: '#be466e', dark: '#1c0f15' },
+  burgundy: { light: '#85203a', dark: '#1b0d11' },
 };
 
 export function applyAppearanceToDocument(
@@ -96,7 +106,12 @@ export function applyAppearanceToDocument(
     'palette-linen',
     'palette-sapphire',
     'palette-amber',
-    'palette-plum'
+    'palette-plum',
+    'palette-rose',
+    'palette-burgundy',
+    'palette-teal',
+    'palette-olive',
+    'palette-sunset'
   );
   if (darkMode) {
     root.classList.add('dark');
@@ -156,5 +171,9 @@ export function validateImportedState(raw: unknown): AppState | null {
     pageProgress: obj.pageProgress ?? {},
     verifiedDuas: obj.verifiedDuas ?? {},
     celebratedJuz: Array.isArray(obj.celebratedJuz) ? obj.celebratedJuz : [],
+    methodDurations:
+      obj.methodDurations && typeof obj.methodDurations === 'object'
+        ? obj.methodDurations
+        : {},
   };
 }
