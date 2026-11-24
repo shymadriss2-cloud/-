@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
-  Flame,
   History,
   Pause,
   Play,
@@ -40,6 +39,7 @@ import type {
 } from '../types/plan';
 import { ArabesqueDivider, CardSuggestionOrnament, HeroCornerArabesque, ThemeEmblem } from './IslamicOrnament';
 import { ProgressRing } from './ProgressRing';
+import { StreakFlame } from './StreakFlame';
 import { TodayPageBadge } from './TodayPageBadge';
 
 interface TodayScreenProps {
@@ -432,14 +432,14 @@ export function TodayScreen({
       {/* Top Overview Strip */}
       <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 md:p-6">
         <HeroCornerArabesque className="absolute -left-6 -top-6 h-48 w-48 text-[var(--accent)] opacity-[0.22]" />
-        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <TodayPageBadge
               focus={todayFocus}
               variant="hero"
               testId="today-hero-page-badge"
             />
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-[var(--text-muted)]">
                 {formatArabicDate(todayIso)}
                 {plannedDay ? ` · الشهر ${plannedDay.monthNumber} من ٣٦` : ''}
@@ -451,21 +451,48 @@ export function TodayScreen({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-5 sm:gap-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--gold-soft)] text-[var(--gold)]">
-                <Flame className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs text-[var(--text-muted)]">سلسلة الاستمرار</p>
-                <p
-                  data-testid="today-streak-value"
-                  className="text-lg font-semibold tabular-nums text-[var(--text-primary)]"
+          <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+            {(() => {
+              const isStreakLit =
+                todayFocus.areAllTasksDone || Boolean(dayLog?.manualConfirmed);
+              return (
+                <div
+                  data-testid="today-streak-box"
+                  data-lit={isStreakLit ? 'true' : 'false'}
+                  className={`flex items-center gap-3 rounded-2xl border px-3.5 py-2.5 transition-all duration-300 ${
+                    isStreakLit
+                      ? 'border-amber-400/55 bg-gradient-to-l from-amber-500/12 via-[var(--bg-surface)]/80 to-orange-500/10 shadow-sm'
+                      : 'border-[var(--border-hairline)] bg-[var(--bg-surface)]/75'
+                  }`}
                 >
-                  {streak} يوم
-                </p>
-              </div>
-            </div>
+                  <StreakFlame
+                    lit={isStreakLit}
+                    size="sm"
+                    testId="today-streak-flame"
+                  />
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs text-[var(--text-muted)]">سلسلة الاستمرار</p>
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                          isStreakLit
+                            ? 'bg-amber-500/18 text-amber-700 dark:text-amber-300'
+                            : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
+                        }`}
+                      >
+                        {isStreakLit ? 'مشتعلة اليوم' : 'منطفئة'}
+                      </span>
+                    </div>
+                    <p
+                      data-testid="today-streak-value"
+                      className="text-lg font-semibold tabular-nums text-[var(--text-primary)]"
+                    >
+                      {streak} يوم
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="flex items-center gap-3">
               <ProgressRing

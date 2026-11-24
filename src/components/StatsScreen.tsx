@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Award, Check, Flame, TrendingUp } from 'lucide-react';
+import { Award, Check, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
   Bar,
@@ -22,10 +22,12 @@ import {
 } from '../engine/planner';
 import type { PageProgress } from '../types/plan';
 import { ProgressRing } from './ProgressRing';
+import { StreakFlame } from './StreakFlame';
 
 interface StatsScreenProps {
   pageProgress: Record<number, PageProgress>;
   streak: number;
+  isTodayCompleted: boolean;
   todayIso: string;
   onResolveWeakPage: (page: number) => void;
 }
@@ -54,6 +56,7 @@ function WeeklyChartTooltip({ active, payload }: CustomTooltipProps) {
 export function StatsScreen({
   pageProgress,
   streak,
+  isTodayCompleted,
   todayIso,
   onResolveWeakPage,
 }: StatsScreenProps) {
@@ -105,18 +108,24 @@ export function StatsScreen({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.04 }}
-          className="card-interactive flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+          data-testid="stats-streak-box"
+          data-lit={isTodayCompleted ? 'true' : 'false'}
+          className={`card-interactive flex items-center justify-between rounded-2xl border p-5 transition-all duration-300 ${
+            isTodayCompleted
+              ? 'border-amber-400/55 bg-gradient-to-l from-amber-500/10 via-[var(--bg-surface)] to-orange-500/8'
+              : 'border-[var(--border-hairline)] bg-[var(--bg-surface)]'
+          }`}
         >
           <div>
             <p className="text-xs text-[var(--text-muted)]">سلسلة الاستمرار</p>
             <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">
               {streak} يوم
             </p>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">التزام متواصل</p>
+            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+              {isTodayCompleted ? 'الشعلة مشتعلة — أتممت اليوم' : 'منطفئة — بانتظار إتمام اليوم'}
+            </p>
           </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--gold-soft)] text-[var(--gold)]">
-            <Flame className="h-6 w-6" />
-          </div>
+          <StreakFlame lit={isTodayCompleted} size="md" testId="stats-streak-flame" />
         </motion.div>
 
         <motion.div

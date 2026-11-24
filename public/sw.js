@@ -80,6 +80,14 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin !== self.location.origin) return;
 
+  if (
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/')
+  ) {
+    return;
+  }
+
   // Navigation requests: Network-first with cached self-contained index.html fallback
   if (request.mode === 'navigate') {
     event.respondWith(

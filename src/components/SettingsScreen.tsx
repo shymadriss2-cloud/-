@@ -296,6 +296,7 @@ export function SettingsScreen({
           {COLOR_PALETTES.map((p) => {
             const active = state.accentColor === p.id;
             const swatchColor = state.darkMode ? p.darkSwatch : p.lightSwatch;
+            const secondaryColor = state.darkMode ? p.darkSecondary : p.lightSecondary;
             const canvasColor = state.darkMode ? p.darkCanvas : p.lightCanvas;
             return (
               <motion.button
@@ -306,17 +307,18 @@ export function SettingsScreen({
                 aria-pressed={active}
                 className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-right transition-all ${
                   active
-                    ? 'card-elevated border-[var(--accent)] bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]/25'
-                    : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)] hover:shadow-xs'
+                    ? 'card-elevated border-[var(--accent)] bg-[linear-gradient(145deg,var(--accent-soft)_0%,color-mix(in_srgb,var(--gold-soft)_55%,var(--bg-surface))_100%)] ring-1 ring-[var(--accent)]/35'
+                    : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--accent)]/50 hover:shadow-xs'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <span
-                    className="mt-0.5 h-8 w-8 shrink-0 rounded-xl border border-black/10 shadow-xs"
-                    style={{
-                      background: `linear-gradient(135deg, ${swatchColor} 52%, ${canvasColor} 52%)`,
-                    }}
-                  />
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 flex-col overflow-hidden rounded-xl border border-black/15 shadow-xs">
+                    <span className="h-4 w-full" style={{ backgroundColor: swatchColor }} />
+                    <div className="flex flex-1">
+                      <span className="w-1/2" style={{ backgroundColor: secondaryColor }} />
+                      <span className="w-1/2" style={{ backgroundColor: canvasColor }} />
+                    </div>
+                  </div>
                   <div>
                     <p className="text-sm font-semibold text-[var(--text-primary)]">{p.title}</p>
                     <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{p.subtitle}</p>

@@ -82,6 +82,23 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'settings', label: 'الإعدادات', icon: Settings },
 ];
 
+const VALID_SCREENS = new Set<ScreenId>([
+  'today',
+  'method',
+  'plan',
+  'mushaf',
+  'stats',
+  'tips',
+  'duas',
+  'settings',
+]);
+
+function getInitialScreen(): ScreenId {
+  if (typeof window === 'undefined') return 'today';
+  const param = new URLSearchParams(window.location.search).get('screen') as ScreenId | null;
+  return param && VALID_SCREENS.has(param) ? param : 'today';
+}
+
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
     const existing = loadAppState();
@@ -94,7 +111,7 @@ export default function App() {
     return existing;
   });
 
-  const [activeScreen, setActiveScreen] = useState<ScreenId>('today');
+  const [activeScreen, setActiveScreen] = useState<ScreenId>(getInitialScreen);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [celebratingJuz, setCelebratingJuz] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -472,10 +489,10 @@ export default function App() {
         <div className="app-shell-wrap min-h-screen text-[var(--text-primary)] pb-20 lg:pb-0">
         <div className="mx-auto flex min-h-screen max-w-[1440px]">
           {/* Desktop Right RTL Sidebar */}
-          <aside className="card-elevated relative z-10 hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[var(--bg-sidebar)] lg:flex lg:flex-col lg:justify-between">
+          <aside className="card-elevated relative z-10 hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[linear-gradient(180deg,var(--bg-sidebar)_0%,color-mix(in_srgb,var(--accent-soft)_42%,var(--bg-sidebar))_100%)] lg:flex lg:flex-col lg:justify-between">
             <div className="p-5">
               <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] pb-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] shadow-xs">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--accent)]/25 bg-[var(--accent)] text-[var(--accent-ink)] shadow-xs">
                   <BookOpen className="h-5 w-5" />
                 </div>
                 <span className="font-display text-xl font-bold whitespace-nowrap text-[var(--text-primary)]">
@@ -513,7 +530,7 @@ export default function App() {
                         <motion.span
                           layoutId="sidebar-active-pill"
                           transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                          className="card-elevated absolute inset-0 rounded-xl bg-[var(--accent-soft)]"
+                          className="card-elevated absolute inset-0 rounded-xl border border-[var(--accent)]/30 border-r-[3px] border-r-[var(--accent)] bg-[var(--accent-soft)]"
                         />
                       )}
                       <Icon className="relative z-10 h-4 w-4 shrink-0" />
@@ -557,6 +574,7 @@ export default function App() {
                   {COLOR_PALETTES.map((p) => {
                     const active = state.accentColor === p.id;
                     const accent = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    const secondary = state.darkMode ? p.darkSecondary : p.lightSecondary;
                     const canvas = state.darkMode ? p.darkCanvas : p.lightCanvas;
                     return (
                       <motion.button
@@ -573,7 +591,7 @@ export default function App() {
                             : 'border-[var(--border-hairline)] hover:scale-105'
                         }`}
                         style={{
-                          background: `linear-gradient(135deg, ${accent} 55%, ${canvas} 55%)`,
+                          background: `conic-gradient(from 40deg, ${accent} 0deg 165deg, ${secondary} 165deg 260deg, ${canvas} 260deg 360deg)`,
                         }}
                       />
                     );
@@ -596,7 +614,7 @@ export default function App() {
         {/* Main Viewport */}
         <div className="relative z-10 flex min-w-0 flex-1 flex-col">
           {/* Compact Top Header (<= 56px on mobile) */}
-          <header className="card-elevated sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-[var(--border-hairline)] bg-[var(--bg-header)] px-4 backdrop-blur-md lg:h-16 lg:px-8">
+          <header className="card-elevated sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-t-2 border-t-[var(--accent)] border-b border-b-[var(--border-hairline)] bg-[var(--bg-header)] px-4 backdrop-blur-md lg:h-16 lg:px-8">
             <div className="flex items-center gap-2 lg:hidden">
               <BookOpen className="h-5 w-5 text-[var(--accent)]" />
               <span className="font-display text-lg font-bold whitespace-nowrap">مِحراب الحفظ</span>
@@ -715,6 +733,9 @@ export default function App() {
                   <StatsScreen
                     pageProgress={state.pageProgress}
                     streak={streak}
+                    isTodayCompleted={
+                      todayFocus.areAllTasksDone || Boolean(state.dayLogs[todayIso]?.manualConfirmed)
+                    }
                     todayIso={todayIso}
                     onResolveWeakPage={handleResolveExtraReview}
                   />
@@ -833,6 +854,7 @@ export default function App() {
                   {COLOR_PALETTES.map((p) => {
                     const active = state.accentColor === p.id;
                     const accent = state.darkMode ? p.darkSwatch : p.lightSwatch;
+                    const secondary = state.darkMode ? p.darkSecondary : p.lightSecondary;
                     const canvas = state.darkMode ? p.darkCanvas : p.lightCanvas;
                     return (
                       <motion.button
@@ -848,7 +870,7 @@ export default function App() {
                             : 'border-[var(--border-hairline)]'
                         }`}
                         style={{
-                          background: `linear-gradient(135deg, ${accent} 55%, ${canvas} 55%)`,
+                          background: `conic-gradient(from 40deg, ${accent} 0deg 165deg, ${secondary} 165deg 260deg, ${canvas} 260deg 360deg)`,
                         }}
                       />
                     );
