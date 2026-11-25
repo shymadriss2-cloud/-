@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
-import { formatPageRangeAr, JUZ_BEGINNINGS, JUZ_NAMES_AR } from '../engine/mushaf';
+import {
+  formatMemorizationPagesAr,
+  formatPageRangeAr,
+  JUZ_BEGINNINGS,
+  JUZ_NAMES_AR,
+} from '../engine/mushaf';
 import {
   ARABIC_WEEKDAYS,
   formatArabicDate,
@@ -10,7 +15,7 @@ import {
   hasDayActivity,
   type PlanTimelineSummary,
 } from '../engine/planner';
-import { PLAN_TRACKS } from '../engine/plans';
+import { getPlanTotalMonths, PLAN_TRACKS } from '../engine/plans';
 import type { DayLog, MemorizationOrder, PageProgress, PlanConfig, PlannedDay, TaskRating } from '../types/plan';
 import { ProgressRing } from './ProgressRing';
 
@@ -18,6 +23,7 @@ interface PlanScreenProps {
   calendar: PlannedDay[];
   order: MemorizationOrder;
   plan?: PlanConfig;
+  pathSummary?: string;
   timeline?: PlanTimelineSummary;
   todayIso: string;
   pageProgress: Record<number, PageProgress>;
@@ -36,6 +42,7 @@ export function PlanScreen({
   calendar,
   order,
   plan,
+  pathSummary,
   timeline,
   todayIso,
   pageProgress,
@@ -44,7 +51,11 @@ export function PlanScreen({
 }: PlanScreenProps) {
   const [activeTab, setActiveTab] = useState<PlanTab>('weekly');
   const activeTrack = PLAN_TRACKS[plan?.trackId ?? 'three_years'];
-  const maxMonths = calendar[calendar.length - 1]?.monthNumber ?? 36;
+  const activeTrackTitle =
+    plan?.trackId === 'three_years' || !plan?.trackId
+      ? 'ثلاث سنوات (الخطة الأساسية)'
+      : activeTrack.title;
+  const maxMonths = getPlanTotalMonths(plan?.trackId ?? 'three_years');
   const remainingWeeks = timeline ? Math.ceil(timeline.daysRemainingToMemorization / 7) : 0;
 
   const todayIndex = useMemo(() => {
@@ -96,11 +107,19 @@ export function PlanScreen({
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs text-[var(--text-muted)]">
-              {activeTrack.title} · خطة ثابتة ومقفلة
+              {activeTrackTitle} · خطة ثابتة ومقفلة
             </p>
             <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
               جدول الخطة الكامل
             </h1>
+            {pathSummary && (
+              <p
+                data-testid="plan-path-summary"
+                className="mt-1.5 text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {pathSummary}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -109,7 +128,7 @@ export function PlanScreen({
                 [
                   { id: 'weekly', label: 'الأسبوعي' },
                   { id: 'monthly', label: `الشهري (${maxMonths} شهراً)` },
-                  { id: 'juz', label: 'جدول الأجزاء (٣٠)' },
+                  { id: 'juz', label: 'جدول الأجزاء (30)' },
                 ] as const
               ).map((tab) => (
                 <button
@@ -259,10 +278,10 @@ export function PlanScreen({
                       <>
                         <p className="font-semibold text-[var(--accent)]">
                           السبق:{' '}
-                          {day.sabaqPages && day.sabaqPages.length > 1
-                            ? `${formatPageRangeAr(day.sabaqPages)} (الجزء ${day.sabaqJuz})`
+                          {day.sabaqPages && day.sabaqPages.length > 0
+                            ? `${formatMemorizationPagesAr(day.sabaqPages, day.dayIndex + 1)} (الجزء ${day.sabaqJuz})`
                             : day.sabaqPage !== null
-                            ? `صفحة ${day.sabaqPage} (الجزء ${day.sabaqJuz})`
+                            ? `${formatMemorizationPagesAr([day.sabaqPage], day.dayIndex + 1)} (الجزء ${day.sabaqJuz})`
                             : 'تثبيت عام'}
                         </p>
                         <p className="text-[var(--text-secondary)]">
@@ -392,7 +411,9 @@ export function PlanScreen({
                           ? 'استدراك'
                           : day.isFriday
                           ? 'تسميع'
-                          : day.sabaqPages && day.sabaqPages.length > 1
+                          : day.sabaqPages && day.sabaqPages.length === 2
+                          ? `ص ${day.sabaqPages[0]} و${day.sabaqPages[1]}`
+                          : day.sabaqPages && day.sabaqPages.length > 2
                           ? `ص ${day.sabaqPages[0]}–${day.sabaqPages[day.sabaqPages.length - 1]}`
                           : day.sabaqPage !== null
                           ? `ص ${day.sabaqPage}`
@@ -448,10 +469,10 @@ export function PlanScreen({
                         <p className="mt-0.5 font-medium text-[var(--text-primary)]">
                           {inspectedDay.isFriday
                             ? formatPageRangeAr(inspectedDay.weeklyReviewPages)
-                            : inspectedDay.sabaqPages && inspectedDay.sabaqPages.length > 1
-                            ? `${formatPageRangeAr(inspectedDay.sabaqPages)} · الجزء ${inspectedDay.sabaqJuz}`
+                            : inspectedDay.sabaqPages && inspectedDay.sabaqPages.length > 0
+                            ? `${formatMemorizationPagesAr(inspectedDay.sabaqPages, inspectedDay.dayIndex + 1)} · الجزء ${inspectedDay.sabaqJuz}`
                             : inspectedDay.sabaqPage !== null
-                            ? `صفحة ${inspectedDay.sabaqPage} · الجزء ${inspectedDay.sabaqJuz}`
+                            ? `${formatMemorizationPagesAr([inspectedDay.sabaqPage], inspectedDay.dayIndex + 1)} · الجزء ${inspectedDay.sabaqJuz}`
                             : 'تثبيت ومراجعة عامة'}
                         </p>
                       </div>
@@ -487,7 +508,9 @@ export function PlanScreen({
                         type="button"
                         onClick={() => {
                           const pages =
-                            inspectedDay.sabaqPage !== null
+                            inspectedDay.sabaqPages && inspectedDay.sabaqPages.length > 0
+                              ? inspectedDay.sabaqPages
+                              : inspectedDay.sabaqPage !== null
                               ? [inspectedDay.sabaqPage]
                               : inspectedDay.weeklyReviewPages.length > 0
                               ? inspectedDay.weeklyReviewPages

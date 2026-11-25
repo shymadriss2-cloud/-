@@ -19,7 +19,11 @@ import {
   TOTAL_JUZ,
   TOTAL_MUSHAF_PAGES,
 } from './mushaf';
-import { computeCyclePlanDurationDays, getPagesAssignedOnDay } from './plans';
+import {
+  computeCyclePlanDurationDays,
+  getCyclePlanMonthNumber,
+  getPagesAssignedOnDay,
+} from './plans';
 
 export const ARABIC_WEEKDAYS = [
   'الأحد',
@@ -364,7 +368,7 @@ export function generatePlanCalendar(
     for (let dayIndex = 0; dayIndex < totalDays; dayIndex++) {
       const current = addDays(startDate, dayIndex);
       const dow = getDayOfWeek(current);
-      const monthNumber = Math.floor(dayIndex / 30) + 1;
+      const monthNumber = getCyclePlanMonthNumber(trackId, dayIndex);
       const pagesToday = getPagesAssignedOnDay(trackId, dayIndex);
       const sabaqPages =
         pagesToday > 0 ? sequence.slice(seqIdx, Math.min(TOTAL_MUSHAF_PAGES, seqIdx + pagesToday)) : [];
@@ -585,6 +589,9 @@ export function getJuzScheduleSummaries(
     map.set(j, { startDate: null, endDate: null });
   }
 
+  const firstSeenJuz: number[] = [];
+  const seenJuz = new Set<number>();
+
   for (const day of calendar) {
     const pages =
       day.sabaqPages && day.sabaqPages.length > 0
@@ -594,18 +601,30 @@ export function getJuzScheduleSummaries(
         : [];
     for (const p of pages) {
       const juz = getJuzForPage(p);
+      if (!seenJuz.has(juz)) {
+        seenJuz.add(juz);
+        firstSeenJuz.push(juz);
+      }
       const entry = map.get(juz)!;
       if (!entry.startDate) entry.startDate = day.date;
       entry.endDate = day.date;
     }
   }
 
-  const orderedJuz =
+  const fallbackOrder =
     order === 'A'
-      ? JUZ_RANGES
-      : [...JUZ_RANGES].sort((a, b) => b.juz - a.juz);
+      ? JUZ_RANGES.map((r) => r.juz)
+      : [...JUZ_RANGES].sort((a, b) => b.juz - a.juz).map((r) => r.juz);
 
-  return orderedJuz.map((r) => {
+  const finalOrder =
+    firstSeenJuz.length > 0
+      ? [...firstSeenJuz, ...fallbackOrder.filter((j) => !seenJuz.has(j))]
+      : fallbackOrder;
+
+  const rangeByJuz = new Map(JUZ_RANGES.map((r) => [r.juz, r]));
+
+  return finalOrder.map((juzNum) => {
+    const r = rangeByJuz.get(juzNum)!;
     const dates = map.get(r.juz)!;
     return {
       juz: r.juz,

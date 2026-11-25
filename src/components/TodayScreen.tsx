@@ -16,7 +16,13 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { getDailyDua } from '../data/duas';
 import { getDailyTip } from '../data/tips';
-import { formatPageRangeAr, getJuzForPage, JUZ_NAMES_AR, TOTAL_MUSHAF_PAGES } from '../engine/mushaf';
+import {
+  formatMemorizationPagesAr,
+  formatPageRangeAr,
+  getJuzForPage,
+  JUZ_NAMES_AR,
+  TOTAL_MUSHAF_PAGES,
+} from '../engine/mushaf';
 import {
   addDays,
   buildPageRange,
@@ -28,9 +34,11 @@ import {
   type PlanTimelineSummary,
   type TodayPageFocusStatus,
 } from '../engine/planner';
+import { getPlanTotalMonths } from '../engine/plans';
 import type {
   DayLog,
   PageProgress,
+  PlanConfig,
   PlannedDay,
   ScreenId,
   TaskKind,
@@ -45,6 +53,8 @@ import { TodayPageBadge } from './TodayPageBadge';
 interface TodayScreenProps {
   todayIso: string;
   startDate: string;
+  plan: PlanConfig;
+  pathSummary: string;
   calendar: PlannedDay[];
   plannedDay: PlannedDay | null;
   dayLog: DayLog | undefined;
@@ -108,6 +118,7 @@ interface TaskCardProps {
   timeValue?: string;
   onTimeChange?: (val: string) => void;
   pages: number[];
+  dayNumber?: number;
   record?: { completed: boolean; rating?: TaskRating; durationSeconds?: number };
   emptyText?: string;
   onSubmitRating: (rating: TaskRating, elapsedSeconds: number) => void;
@@ -121,6 +132,7 @@ function DailyTaskCard({
   timeValue,
   onTimeChange,
   pages,
+  dayNumber,
   record,
   emptyText,
   onSubmitRating,
@@ -173,8 +185,13 @@ function DailyTaskCard({
           <div className="mt-3 text-sm font-medium text-[var(--text-primary)]">
             {hasPages ? (
               <span>
-                {formatPageRangeAr(pages)}
-                {pages.length === 1 ? ` · الجزء ${getJuzForPage(pages[0])}` : ''}
+                {kind === 'sabaq'
+                  ? formatMemorizationPagesAr(pages, dayNumber)
+                  : formatPageRangeAr(pages)}
+                {pages.length === 1 ||
+                getJuzForPage(pages[0]) === getJuzForPage(pages[pages.length - 1])
+                  ? ` · الجزء ${getJuzForPage(pages[0])}`
+                  : ''}
               </span>
             ) : (
               <span className="text-[var(--text-muted)]">{emptyText ?? 'لا توجد صفحات مجدولة اليوم'}</span>
@@ -286,6 +303,8 @@ function DailyTaskCard({
 export function TodayScreen({
   todayIso,
   startDate,
+  plan,
+  pathSummary,
   calendar,
   plannedDay,
   dayLog,
@@ -422,12 +441,15 @@ export function TodayScreen({
     setRetroNote('');
   };
 
-  const phaseLabel =
-    plannedDay?.phase === 'full_review'
-      ? 'مرحلة المراجعة الشاملة (الأشهر ٣١–٣٦)'
+  const totalMonths = getPlanTotalMonths(plan.trackId ?? 'three_years');
+  const isLegacyThreeYear = !plan.trackId || plan.trackId === 'three_years';
+  const phaseLabel = isLegacyThreeYear
+    ? plannedDay?.phase === 'full_review'
+      ? 'مرحلة المراجعة الشاملة (الأشهر 31–36)'
       : plannedDay?.phase === 'consolidation'
       ? 'مرحلة التثبيت'
-      : 'مرحلة الحفظ والتثبيت (الأشهر ١–٣٠)';
+      : 'مرحلة الحفظ والتثبيت (الأشهر 1–30)'
+    : `مرحلة الحفظ (الأشهر 1–${totalMonths})`;
 
   return (
     <div className="space-y-6">
@@ -444,12 +466,18 @@ export function TodayScreen({
             <div className="min-w-0">
               <p className="text-xs text-[var(--text-muted)]">
                 {formatArabicDate(todayIso)}
-                {plannedDay ? ` · الشهر ${plannedDay.monthNumber} من ٣٦` : ''}
+                {plannedDay ? ` · الشهر ${plannedDay.monthNumber} من ${totalMonths}` : ''}
               </p>
               <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
                 ورد اليوم
               </h1>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">{phaseLabel}</p>
+              <p
+                data-testid="today-path-summary"
+                className="mt-1.5 text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {pathSummary}
+              </p>
             </div>
           </div>
 
@@ -482,7 +510,7 @@ export function TodayScreen({
                             : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
                         }`}
                       >
-                        {isStreakLit ? 'مشتعلة اليوم' : 'منطفئة'}
+                        {isStreakLit ? 'مشتعلة اليوم' : 'أنجز ورد اليوم للحفاظ عليها'}
                       </span>
                     </div>
                     <p
@@ -856,7 +884,7 @@ export function TodayScreen({
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {todayIso < startDate
               ? `تبدأ خطتك يوم ${formatShortArabicDate(startDate)}`
-              : 'أتممت بفضل الله فترة ٣٦ شهراً من الخطة'}
+              : `أتممت بفضل الله فترة ${totalMonths} شهراً من الخطة`}
           </h2>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             {todayIso < startDate
@@ -1051,6 +1079,7 @@ export function TodayScreen({
                   timeValue={taskTimes.sabaq}
                   onTimeChange={(val) => onUpdateTaskTime('sabaq', val)}
                   pages={sabaqPagesToday}
+                  dayNumber={dayIndex + 1}
                   record={dayLog?.tasks.sabaq}
                   emptyText={
                     plannedDay.phase === 'memorization'

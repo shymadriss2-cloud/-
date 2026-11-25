@@ -160,13 +160,28 @@ export function getManzilPagesPerDay(monthNumber: number): number {
 export function formatPageRangeAr(pages: number[]): string {
   if (pages.length === 0) return 'لا يوجد';
   if (pages.length === 1) return `صفحة ${pages[0]}`;
-  const sorted = [...pages].sort((a, b) => a - b);
-  const contiguous = sorted.every((p, idx) => idx === 0 || p === sorted[idx - 1] + 1);
+  if (pages.length === 2) return `الصفحتان ${pages[0]} و${pages[1]}`;
+  const step = pages[1] - pages[0];
+  const contiguous =
+    (step === 1 || step === -1) &&
+    pages.every((p, idx) => idx === 0 || p === pages[idx - 1] + step);
   if (contiguous) {
-    return `صفحات ${sorted[0]}–${sorted[sorted.length - 1]}`;
+    return `صفحات ${pages[0]}–${pages[pages.length - 1]}`;
   }
   if (pages.length <= 4) {
     return `صفحات ${pages.join('، ')}`;
   }
   return `${pages.length} صفحات (${pages[0]} ... ${pages[pages.length - 1]})`;
 }
+
+export function formatMemorizationPagesAr(pages: number[], dayNumber?: number): string {
+  if (pages.length === 0) return 'لا يوجد';
+  const body =
+    pages.length === 1
+      ? `صفحة ${pages[0]}`
+      : pages.length === 2
+      ? `الصفحتان ${pages[0]} و${pages[1]}`
+      : formatPageRangeAr(pages);
+  return dayNumber !== undefined ? `اليوم ${dayNumber}: ${body}` : body;
+}
+

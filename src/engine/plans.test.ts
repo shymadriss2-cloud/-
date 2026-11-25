@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PLAN_CONFIG } from '../config/planConfig';
-import { buildSequenceFromConfig } from './mushaf';
-import { addDays, diffDays, generatePlanCalendar } from './planner';
+import { buildSequenceFromConfig, formatMemorizationPagesAr, formatPageRangeAr } from './mushaf';
+import { addDays, diffDays, generatePlanCalendar, getJuzScheduleSummaries } from './planner';
 import {
   computeCyclePlanDurationDays,
+  formatUserPathSummary,
+  getCyclePlanMonthNumber,
   getPagesAssignedOnDay,
+  getPlanTotalMonths,
   getRequiredPagesByDayIndex,
   isoToDDMMYYYY,
   parseDDMMYYYYToIso,
@@ -137,5 +140,67 @@ test('toLatinDigits, isoToDDMMYYYY, and parseDDMMYYYYToIso format and validate d
   assert.equal(parseDDMMYYYYToIso('٢٥/١١/٢٠٢٦'), '2026-11-25');
   assert.equal(parseDDMMYYYYToIso('31/02/2026'), null); // invalid calendar date
   assert.equal(parseDDMMYYYYToIso('2026-11-25'), null); // wrong order
+});
+
+test('Month counts use ceil(totalDays / 30.44) for cycle plans and 36 for legacy 3-year plan', () => {
+  assert.equal(getPlanTotalMonths('intensive_1y'), 12);
+  assert.equal(getPlanTotalMonths('two_years'), 24);
+  assert.equal(getPlanTotalMonths('juz_per_month'), 30);
+  assert.equal(getPlanTotalMonths('five_years'), 60);
+  assert.equal(getPlanTotalMonths('three_years'), 36);
+
+  assert.equal(getCyclePlanMonthNumber('intensive_1y', 0), 1);
+  assert.equal(getCyclePlanMonthNumber('intensive_1y', 351), 12);
+  assert.equal(getCyclePlanMonthNumber('juz_per_month', 905), 30);
+  assert.equal(getCyclePlanMonthNumber('five_years', 1811), 60);
+});
+
+test('Intensive 1y starting from An-Nas backward assigns [604, 603] on Day 1 and [602, 601] on Day 2', () => {
+  const cal = generatePlanCalendar('2026-11-25', 'B', {
+    trackId: 'intensive_1y',
+    startPage: 604,
+    direction: 'backward',
+  });
+  assert.deepEqual(cal[0].sabaqPages, [604, 603]);
+  assert.deepEqual(cal[1].sabaqPages, [602, 601]);
+  assert.equal(cal[0].monthNumber, 1);
+  assert.equal(cal[cal.length - 1].monthNumber, 12);
+
+  assert.equal(formatPageRangeAr(cal[0].sabaqPages!), 'الصفحتان 604 و603');
+  assert.equal(formatMemorizationPagesAr(cal[0].sabaqPages!, 1), 'اليوم 1: الصفحتان 604 و603');
+
+  const juzOrder = getJuzScheduleSummaries(cal, 'B').map((j) => j.juz);
+  assert.equal(juzOrder[0], 30);
+  assert.equal(juzOrder[juzOrder.length - 1], 1);
+
+  const summary = formatUserPathSummary(
+    {
+      startDate: '2026-11-25',
+      order: 'B',
+      trackId: 'intensive_1y',
+      startMode: 'from_nas',
+      startPage: 604,
+      direction: 'backward',
+      locked: true,
+      createdAt: '2026-11-25T00:00:00Z',
+    },
+    cal
+  );
+  assert.equal(
+    summary,
+    'مسارك: سنة مكثفة · تبدأ من صفحة 604 (الناس) · عكس ترتيب المصحف · تنتهي عند صفحة 1'
+  );
+});
+
+test('Custom Al-Kahf (293) forward orders Juz summaries from 15 wrapping through 30 and 1..14', () => {
+  const cal = generatePlanCalendar('2026-11-25', 'A', {
+    trackId: 'two_years',
+    startPage: 293,
+    direction: 'forward',
+  });
+  const juzOrder = getJuzScheduleSummaries(cal, 'A').map((j) => j.juz);
+  assert.equal(juzOrder[0], 15);
+  assert.equal(juzOrder[1], 16);
+  assert.equal(juzOrder[juzOrder.length - 1], 14);
 });
 

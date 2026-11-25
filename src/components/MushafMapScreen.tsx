@@ -6,6 +6,7 @@ import type { PageProgress, PageStatus } from '../types/plan';
 
 interface MushafMapScreenProps {
   pageProgress: Record<number, PageProgress>;
+  sequence?: number[];
   onSetPageStatus: (page: number, status: PageStatus) => void;
 }
 
@@ -39,12 +40,41 @@ const STATUS_META: Record<
   },
 };
 
-export function MushafMapScreen({ pageProgress, onSetPageStatus }: MushafMapScreenProps) {
+export function MushafMapScreen({
+  pageProgress,
+  sequence,
+  onSetPageStatus,
+}: MushafMapScreenProps) {
   const [filter, setFilter] = useState<'all' | PageStatus>('all');
-  const [selectedPage, setSelectedPage] = useState<number>(1);
+  const [selectedPage, setSelectedPage] = useState<number>(() => sequence?.[0] ?? 1);
 
   const stats = useMemo(() => getMemorizedStats(pageProgress), [pageProgress]);
   const extraReview = useMemo(() => getExtraReviewPages(pageProgress), [pageProgress]);
+
+  const { orderedJuzRanges, sequenceIndexMap } = useMemo(() => {
+    if (!sequence || sequence.length === 0) {
+      return { orderedJuzRanges: JUZ_RANGES, sequenceIndexMap: null };
+    }
+    const idxMap = new Map<number, number>();
+    const firstJuzOrder: number[] = [];
+    const seenJuz = new Set<number>();
+
+    sequence.forEach((p, idx) => {
+      idxMap.set(p, idx);
+      const range = JUZ_RANGES.find((r) => p >= r.startPage && p <= r.endPage);
+      if (range && !seenJuz.has(range.juz)) {
+        seenJuz.add(range.juz);
+        firstJuzOrder.push(range.juz);
+      }
+    });
+
+    const rangeByJuz = new Map(JUZ_RANGES.map((r) => [r.juz, r]));
+    const ordered = [
+      ...firstJuzOrder.map((j) => rangeByJuz.get(j)!),
+      ...JUZ_RANGES.filter((r) => !seenJuz.has(r.juz)),
+    ];
+    return { orderedJuzRanges: ordered, sequenceIndexMap: idxMap };
+  }, [sequence]);
 
   const selectedProgress = pageProgress[selectedPage];
   const selectedStatus: PageStatus = selectedProgress?.status ?? 'not_started';
@@ -165,7 +195,7 @@ export function MushafMapScreen({ pageProgress, onSetPageStatus }: MushafMapScre
 
       {/* 604 Tiles grouped by Juz */}
       <div className="space-y-4">
-        {JUZ_RANGES.map((range) => {
+        {orderedJuzRanges.map((range) => {
           const pages: number[] = [];
           for (let p = range.startPage; p <= range.endPage; p++) {
             const st = pageProgress[p]?.status ?? 'not_started';
@@ -174,6 +204,11 @@ export function MushafMapScreen({ pageProgress, onSetPageStatus }: MushafMapScre
             }
           }
           if (pages.length === 0) return null;
+          if (sequenceIndexMap) {
+            pages.sort(
+              (a, b) => (sequenceIndexMap.get(a) ?? a) - (sequenceIndexMap.get(b) ?? b)
+            );
+          }
 
           const beginning = JUZ_BEGINNINGS[range.juz];
 

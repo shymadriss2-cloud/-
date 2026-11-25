@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { ArrowRight, Calendar, Check, Lock, ShieldCheck } from 'lucide-react';
 import { PLAN_CONFIG } from '../config/planConfig';
-import { MUSHAF_SURAHS } from '../data/surahs';
+import { MUSHAF_SURAHS, getSurahEntryForPage } from '../data/surahs';
 import { buildSequenceFromConfig, JUZ_BEGINNINGS, JUZ_RANGES } from '../engine/mushaf';
 import { addDays, addMonths, formatShortArabicDate, getTodayLocalISO } from '../engine/planner';
 import {
@@ -22,6 +22,7 @@ import type {
   PlanTrackId,
 } from '../types/plan';
 import { AppLogo } from './AppLogo';
+import { ShareCharityCard } from './ShareCharityCard';
 
 export interface SetupConfirmPayload {
   startDate: string;
@@ -79,6 +80,50 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
     () => buildSequenceFromConfig(resolvedStartPage, direction),
     [resolvedStartPage, direction]
   );
+
+  const directionSurahExamples = useMemo(() => {
+    const startSurah = getSurahEntryForPage(resolvedStartPage);
+    const idx = Math.max(
+      0,
+      MUSHAF_SURAHS.findIndex((s) => s.number === startSurah.number)
+    );
+    const total = MUSHAF_SURAHS.length;
+
+    const fwdNames =
+      resolvedStartPage === 1
+        ? [1, 2, 3].map((off) => MUSHAF_SURAHS[(idx + off) % total].name)
+        : [0, 1, 2].map((off) => MUSHAF_SURAHS[(idx + off) % total].name);
+
+    const bwdNames =
+      resolvedStartPage === PLAN_CONFIG.TOTAL_MUSHAF_PAGES
+        ? ['الناس', 'الفلق', 'الإخلاص']
+        : [0, 1, 2].map((off) => MUSHAF_SURAHS[(idx - off + total) % total].name);
+
+    return {
+      forward: `(مثال: ${fwdNames.join(' ثم ')}...)`,
+      backward: `(مثال: ${bwdNames.join(' ثم ')}...)`,
+    };
+  }, [resolvedStartPage]);
+
+  const wrapNotice = useMemo(() => {
+    const totalPages = PLAN_CONFIG.TOTAL_MUSHAF_PAGES;
+    if (direction === 'forward' && resolvedStartPage > 1) {
+      return `بعد الصفحة ${totalPages} تنتقل الخطة إلى الصفحة 1`;
+    }
+    if (direction === 'backward' && resolvedStartPage < totalPages) {
+      return `بعد الصفحة 1 تنتقل الخطة إلى الصفحة ${totalPages}`;
+    }
+    return null;
+  }, [direction, resolvedStartPage]);
+
+  const handleSelectStartMode = (mode: PlanStartMode) => {
+    setStartMode(mode);
+    if (mode === 'from_start' || mode === 'juz_amma_first') {
+      setDirection('forward');
+    } else if (mode === 'from_nas') {
+      setDirection('backward');
+    }
+  };
 
   const activeTrackDef = selectedTrack ? PLAN_TRACKS[selectedTrack] : null;
 
@@ -176,6 +221,12 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
     <div className="min-h-screen bg-[var(--bg-canvas)] px-4 py-8 md:py-12">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
+          <p
+            data-testid="setup-basmala"
+            className="font-display mb-4 text-xl font-semibold text-[var(--accent)] md:text-2xl"
+          >
+            بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+          </p>
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--accent)]/25 bg-[linear-gradient(145deg,var(--accent-soft)_0%,var(--bg-surface)_100%)] text-[var(--accent)] shadow-sm">
             <AppLogo variant="badge" className="h-11 w-11" />
           </div>
@@ -390,7 +441,7 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
                     type="button"
                     data-testid={`start-mode-${opt.id}`}
                     aria-pressed={startMode === opt.id}
-                    onClick={() => setStartMode(opt.id)}
+                    onClick={() => handleSelectStartMode(opt.id)}
                     className={`flex flex-col items-start rounded-xl border p-3.5 text-right transition-colors ${
                       startMode === opt.id
                         ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
@@ -406,6 +457,28 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
                   </button>
                 ))}
               </div>
+
+              {startMode !== 'custom' && (
+                <div className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
+                  <p>
+                    مسار الصفحات: تبدأ من{' '}
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      صفحة {previewSequence[0]}
+                    </span>{' '}
+                    وتختم عند{' '}
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      صفحة {previewSequence[previewSequence.length - 1]}
+                    </span>{' '}
+                    ({direction === 'forward' ? 'بترتيب المصحف' : 'عكس ترتيب المصحف'} ·{' '}
+                    {previewSequence.length} صفحة دون تكرار).
+                  </p>
+                  {wrapNotice && (
+                    <p data-testid="setup-wrap-notice" className="font-medium text-[var(--accent)]">
+                      {wrapNotice}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {startMode === 'custom' && (
                 <div className="mt-3 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-4">
@@ -491,54 +564,71 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
               )}
             </div>
 
-            <div>
-              <span className="block text-sm font-medium text-[var(--text-primary)]">
-                4. اتجاه الحفظ
-              </span>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  data-testid="direction-forward"
-                  aria-pressed={direction === 'forward'}
-                  onClick={() => setDirection('forward')}
-                  className={`flex flex-col items-start rounded-xl border p-3.5 text-right transition-colors ${
-                    direction === 'forward'
-                      ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                      : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)]'
-                  }`}
-                >
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    للأمام (تصاعدياً)
-                  </span>
-                  <span className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                    بترتيب الصفحات تصاعدياً من نقطة البداية حتى ختام المصحف دون تكرار.
-                  </span>
-                </button>
+            {startMode === 'custom' && (
+              <div data-testid="setup-direction-section">
+                <span className="block text-sm font-medium text-[var(--text-primary)]">
+                  4. اتجاه الحفظ
+                </span>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    data-testid="direction-forward"
+                    aria-pressed={direction === 'forward'}
+                    onClick={() => setDirection('forward')}
+                    className={`flex flex-col items-start rounded-xl border p-3.5 text-right transition-colors ${
+                      direction === 'forward'
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                        : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)]'
+                    }`}
+                  >
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">
+                      بترتيب المصحف
+                    </span>
+                    <span className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+                      بترتيب المصحف من نقطة البداية حتى ختام المصحف دون تكرار{' '}
+                      {directionSurahExamples.forward}.
+                    </span>
+                  </button>
 
-                <button
-                  type="button"
-                  data-testid="direction-backward"
-                  aria-pressed={direction === 'backward'}
-                  onClick={() => setDirection('backward')}
-                  className={`flex flex-col items-start rounded-xl border p-3.5 text-right transition-colors ${
-                    direction === 'backward'
-                      ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                      : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)]'
-                  }`}
-                >
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                    للخلف (تنازلياً)
-                  </span>
-                  <span className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                    من الصفحة المختارة تنازلياً (ترتيب الآيات داخل الصفحة الواحدة يبقى طبيعياً).
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    data-testid="direction-backward"
+                    aria-pressed={direction === 'backward'}
+                    onClick={() => setDirection('backward')}
+                    className={`flex flex-col items-start rounded-xl border p-3.5 text-right transition-colors ${
+                      direction === 'backward'
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                        : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)] hover:border-[var(--text-muted)]'
+                    }`}
+                  >
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">
+                      عكس ترتيب المصحف
+                    </span>
+                    <span className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+                      عكس ترتيب المصحف من الصفحة المختارة {directionSurahExamples.backward} (ترتيب الآيات داخل الصفحة الواحدة يبقى طبيعياً).
+                    </span>
+                  </button>
+                </div>
+                <div className="mt-2 space-y-1 text-xs text-[var(--text-muted)]">
+                  <p>
+                    مسار الصفحات: تبدأ من{' '}
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      صفحة {previewSequence[0]}
+                    </span>{' '}
+                    وتختم عند{' '}
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      صفحة {previewSequence[previewSequence.length - 1]}
+                    </span>{' '}
+                    ({previewSequence.length} صفحة دون تكرار).
+                  </p>
+                  {wrapNotice && (
+                    <p data-testid="setup-wrap-notice" className="font-medium text-[var(--accent)]">
+                      {wrapNotice}
+                    </p>
+                  )}
+                </div>
               </div>
-              <p className="mt-2 text-xs text-[var(--text-muted)]">
-                مسار الصفحات: تبدأ من <span className="font-semibold text-[var(--text-primary)]">صفحة {previewSequence[0]}</span> وتختم عند{' '}
-                <span className="font-semibold text-[var(--text-primary)]">صفحة {previewSequence[previewSequence.length - 1]}</span> ({previewSequence.length} صفحة دون تكرار).
-              </p>
-            </div>
+            )}
 
             <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-subtle)] p-4">
               <div className="flex items-start gap-3">
@@ -548,7 +638,7 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
                     قفل نهائي للخطة المختارة
                   </p>
                   <p className="mt-1">
-                    اختيار الخطة ونقطة البداية والاتجاه نهائي ولا يمكن تغييره لاحقاً، وتُحفظ بياناتك وتقدّمك محلياً على جهازك فقط.
+                    اختيار الخطة ونقطة البداية والاتجاه نهائي، ولا يمكن تغييره لاحقًا إلا بحذف كل البيانات والبدء من جديد.
                   </p>
                 </div>
               </div>
@@ -571,6 +661,8 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
             </button>
           </div>
         </form>
+
+        <ShareCharityCard variant="setup" />
       </div>
 
       {/* Explicit Final Confirmation Dialog */}
@@ -594,7 +686,7 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
                   تأكيد اختيار الخطة النهائي
                 </h2>
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  اختيار الخطة نهائي ولا يمكن تغييره لاحقًا. عليك الالتزام بها حتى ختم المصحف.
+                  اختيار الخطة ونقطة البداية والاتجاه نهائي، ولا يمكن تغييره لاحقًا إلا بحذف كل البيانات والبدء من جديد.
                 </p>
               </div>
             </div>
@@ -610,7 +702,7 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
               </p>
               <p>
                 <span className="font-semibold text-[var(--text-primary)]">الاتجاه:</span>{' '}
-                {direction === 'forward' ? 'للأمام (تصاعدياً)' : 'للخلف (تنازلياً)'} · ص{' '}
+                {direction === 'forward' ? 'بترتيب المصحف' : 'عكس ترتيب المصحف'} · ص{' '}
                 {previewSequence[0]} ← ص {previewSequence[previewSequence.length - 1]}
               </p>
               <p>

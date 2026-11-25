@@ -1,5 +1,6 @@
 import { PLAN_CONFIG } from '../config/planConfig';
-import type { PlanTrackId } from '../types/plan';
+import { getSurahEntryForPage } from '../data/surahs';
+import type { PlanConfig, PlannedDay, PlanTrackId } from '../types/plan';
 
 export interface PlanTrackDefinition {
   id: PlanTrackId;
@@ -202,5 +203,48 @@ export function parseDDMMYYYYToIso(input: string): string | null {
     return null;
   }
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function getPlanTotalMonths(trackId: PlanTrackId = 'three_years'): number {
+  if (trackId === 'three_years') {
+    return 36;
+  }
+  const totalDays = computeCyclePlanDurationDays(trackId, PLAN_CONFIG.TOTAL_MUSHAF_PAGES);
+  return Math.ceil(totalDays / 30.44);
+}
+
+export function getCyclePlanMonthNumber(trackId: PlanTrackId, dayIndex: number): number {
+  const totalMonths = getPlanTotalMonths(trackId);
+  const safeDayIndex = Math.max(0, dayIndex);
+  return Math.min(totalMonths, Math.floor(safeDayIndex / 30.44) + 1);
+}
+
+export function formatUserPathSummary(plan: PlanConfig, calendar: PlannedDay[]): string {
+  const trackId: PlanTrackId = plan.trackId ?? 'three_years';
+  const planName =
+    trackId === 'three_years' ? 'ثلاث سنوات (الخطة الأساسية)' : PLAN_TRACKS[trackId].title;
+
+  const scheduledPages: number[] = [];
+  for (const day of calendar) {
+    if (day.sabaqPages && day.sabaqPages.length > 0) {
+      scheduledPages.push(...day.sabaqPages);
+    } else if (day.sabaqPage !== null) {
+      scheduledPages.push(day.sabaqPage);
+    }
+  }
+
+  const startPage = plan.startPage ?? scheduledPages[0] ?? 1;
+  const endPage =
+    scheduledPages.length > 0
+      ? scheduledPages[scheduledPages.length - 1]
+      : startPage === 1
+      ? PLAN_CONFIG.TOTAL_MUSHAF_PAGES
+      : startPage - 1;
+
+  const startSurah = getSurahEntryForPage(startPage);
+  const directionLabel =
+    plan.direction === 'backward' ? 'عكس ترتيب المصحف' : 'بترتيب المصحف';
+
+  return `مسارك: ${planName} · تبدأ من صفحة ${startPage} (${startSurah.name}) · ${directionLabel} · تنتهي عند صفحة ${endPage}`;
 }
 

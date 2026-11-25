@@ -52,8 +52,13 @@ function getMainDisplay(focus: TodayPageFocusStatus): { main: string; sub: strin
     };
   }
   if (focus.mode === 'sabaq' && focus.secondaryPages.length > 1) {
+    const pages = focus.secondaryPages;
+    const main =
+      pages.length === 2
+        ? `${pages[0]} و${pages[1]}`
+        : `${pages[0]}–${pages[pages.length - 1]}`;
     return {
-      main: `${focus.secondaryPages[0]}–${focus.secondaryPages[focus.secondaryPages.length - 1]}`,
+      main,
       sub: focus.juz ? `الجزء ${focus.juz}` : 'المصحف الشريف',
     };
   }
@@ -133,9 +138,9 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
         <div className="relative z-10 mt-2.5 flex items-baseline justify-between gap-2">
           <div className="flex items-baseline gap-2">
             <span
-              dir="ltr"
+              dir={main.includes('–') || main.includes('-') ? 'ltr' : 'rtl'}
               className={`font-display whitespace-nowrap font-bold leading-none tabular-nums ${
-                main.length > 3 ? 'text-2xl' : 'text-4xl'
+                main.length > 5 ? 'text-xl' : main.length > 3 ? 'text-2xl' : 'text-4xl'
               }`}
             >
               {main}
@@ -224,9 +229,13 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
       </div>
 
       <p
-        dir="ltr"
+        dir={main.includes('–') || main.includes('-') ? 'ltr' : 'rtl'}
         className={`font-display relative z-10 mt-1.5 whitespace-nowrap font-bold leading-none tabular-nums ${
-          main.length > 3 ? 'text-4xl sm:text-[2.6rem]' : 'text-5xl sm:text-[3.5rem]'
+          main.length > 5
+            ? 'text-3xl sm:text-[2.1rem]'
+            : main.length > 3
+            ? 'text-4xl sm:text-[2.6rem]'
+            : 'text-5xl sm:text-[3.5rem]'
         }`}
       >
         {main}

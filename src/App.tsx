@@ -11,6 +11,7 @@ import {
   Settings,
   Sparkles,
   Sun,
+  Trash2,
   X,
 } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
@@ -25,11 +26,18 @@ import { PlanScreen } from './components/PlanScreen';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { SettingsScreen } from './components/SettingsScreen';
 import { SetupScreen, type SetupConfirmPayload } from './components/SetupScreen';
+import { ShareCharityCard } from './components/ShareCharityCard';
 import { StatsScreen } from './components/StatsScreen';
 import { TipsScreen } from './components/TipsScreen';
 import { TodayPageBadge } from './components/TodayPageBadge';
 import { TodayScreen } from './components/TodayScreen';
 import { COLOR_PALETTES } from './data/palettes';
+import { buildMemorizationSequence, buildSequenceFromConfig } from './engine/mushaf';
+import {
+  formatUserPathSummary,
+  getPlanTotalMonths,
+  PLAN_TRACKS,
+} from './engine/plans';
 import {
   applyRatingToPages,
   computeCurrentStreak,
@@ -60,6 +68,7 @@ import type {
 import {
   applyAppearanceToDocument,
   buildAutostartSeedState,
+  DEFAULT_APP_STATE,
   hasExistingPlanOrProgress,
   loadAppState,
   saveAppState,
@@ -115,6 +124,8 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [celebratingJuz, setCelebratingJuz] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [deleteStep, setDeleteStep] = useState<'none' | 'confirm1' | 'confirm2'>('none');
+  const [deleteConfirmText, setDeleteConfirmText] = useState<string>('');
   const firedRemindersRef = useRef<Set<string>>(new Set());
 
   const todayIso = getTodayLocalISO();
@@ -460,6 +471,19 @@ export default function App() {
     setActiveScreen('today');
   };
 
+  const handleResetAllData = () => {
+    setState((prev) => ({
+      ...DEFAULT_APP_STATE,
+      darkMode: prev.darkMode,
+      accentColor: prev.accentColor,
+      theme: prev.theme,
+    }));
+    setDeleteStep('none');
+    setDeleteConfirmText('');
+    setMobileMenuOpen(false);
+    setActiveScreen('today');
+  };
+
   // First-run setup gate ONLY if no saved locked plan and no existing memorization progress
   if (!hasExistingPlanOrProgress(state)) {
     return <SetupScreen onConfirmPlan={handleConfirmPlan} />;
@@ -472,6 +496,13 @@ export default function App() {
     locked: true,
     createdAt: new Date().toISOString(),
   };
+
+  const totalMonths = getPlanTotalMonths(activePlan.trackId ?? 'three_years');
+  const pathSummary = formatUserPathSummary(activePlan, calendar);
+  const activeSequence =
+    activePlan.startPage !== undefined && activePlan.direction !== undefined
+      ? buildSequenceFromConfig(activePlan.startPage, activePlan.direction)
+      : buildMemorizationSequence(activePlan.order);
 
   const previousPage =
     plannedToday?.sabqiPages && plannedToday.sabqiPages.length > 0
@@ -652,12 +683,10 @@ export default function App() {
 
             <span className="hidden text-xs text-[var(--text-muted)] sm:inline">
               {plannedToday
-                ? `الشهر ${plannedToday.monthNumber} من ${
-                    activePlan.trackId && activePlan.trackId !== 'three_years'
-                      ? calendar[calendar.length - 1]?.monthNumber ?? 12
-                      : '٣٦'
-                  }`
-                : 'خطة الـ ٣ سنوات'}
+                ? `الشهر ${plannedToday.monthNumber} من ${totalMonths}`
+                : activePlan.trackId && activePlan.trackId !== 'three_years'
+                ? PLAN_TRACKS[activePlan.trackId].title
+                : 'خطة 3 سنوات'}
             </span>
 
             <motion.button
@@ -686,6 +715,8 @@ export default function App() {
                   <TodayScreen
                     todayIso={todayIso}
                     startDate={activePlan.startDate}
+                    plan={activePlan}
+                    pathSummary={pathSummary}
                     calendar={calendar}
                     plannedDay={plannedToday}
                     dayLog={state.dayLogs[todayIso]}
@@ -739,6 +770,7 @@ export default function App() {
                     calendar={calendar}
                     order={activePlan.order}
                     plan={activePlan}
+                    pathSummary={pathSummary}
                     timeline={timeline ?? undefined}
                     todayIso={todayIso}
                     pageProgress={state.pageProgress}
@@ -750,6 +782,7 @@ export default function App() {
                 {activeScreen === 'mushaf' && (
                   <MushafMapScreen
                     pageProgress={state.pageProgress}
+                    sequence={activeSequence}
                     onSetPageStatus={handleSetPageStatus}
                   />
                 )}
@@ -866,7 +899,7 @@ export default function App() {
               exit={{ y: 40 }}
               transition={{ duration: 0.2 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full rounded-t-3xl border-t border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 pb-8"
+              className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl border-t border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 pb-8"
             >
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-sm font-semibold text-[var(--text-primary)]">أقسام التطبيق</span>
@@ -952,10 +985,120 @@ export default function App() {
                   );
                 })}
               </div>
+
+              <div className="mt-4 space-y-3 border-t border-[var(--border-hairline)] pt-4">
+                <ShareCharityCard variant="drawer" />
+
+                <button
+                  type="button"
+                  data-testid="more-delete-all-btn"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setDeleteConfirmText('');
+                    setDeleteStep('confirm1');
+                  }}
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--danger)]/35 bg-[var(--danger-soft)]/35 px-4 text-xs font-semibold text-[var(--danger)] transition-colors hover:bg-[var(--danger-soft)]/60"
+                >
+                  <Trash2 className="h-4 w-4 shrink-0" />
+                  <span>حذف كل البيانات والبدء من جديد</span>
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Two-step Delete All Data Confirmation Modals */}
+      {deleteStep === 'confirm1' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-step1-title"
+          data-testid="delete-data-modal-1"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6 shadow-xl">
+            <h2 id="delete-step1-title" className="text-lg font-bold text-[var(--text-primary)]">
+              حذف كل البيانات والبدء من جديد
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+              سيُحذف كل تقدمك نهائيًا: الخطة المختارة، الصفحات المحفوظة، الإحصائيات، سلسلة الاستمرار. لا يمكن التراجع.
+            </p>
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                type="button"
+                autoFocus
+                data-testid="delete-step1-cancel"
+                onClick={() => setDeleteStep('none')}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-4 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                data-testid="delete-step1-continue"
+                onClick={() => {
+                  setDeleteConfirmText('');
+                  setDeleteStep('confirm2');
+                }}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-[var(--danger)]/40 bg-[var(--danger-soft)] px-4 text-sm font-semibold text-[var(--danger)] hover:opacity-90"
+              >
+                متابعة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteStep === 'confirm2' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-step2-title"
+          data-testid="delete-data-modal-2"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6 shadow-xl">
+            <h2 id="delete-step2-title" className="text-lg font-bold text-[var(--text-primary)]">
+              تأكيد الحذف النهائي
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+              اكتب كلمة <span className="font-bold text-[var(--danger)]">حذف</span> للمتابعة وإعادة التطبيق لصفحة اختيار الخطة.
+            </p>
+            <input
+              type="text"
+              data-testid="delete-confirm-input"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="اكتب: حذف"
+              autoFocus
+              className="mt-3 h-11 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 text-sm text-[var(--text-primary)] focus:border-[var(--danger)] focus:outline-none"
+            />
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                type="button"
+                data-testid="delete-step2-cancel"
+                onClick={() => {
+                  setDeleteStep('none');
+                  setDeleteConfirmText('');
+                }}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-4 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                data-testid="delete-final-confirm-btn"
+                disabled={deleteConfirmText.trim() !== 'حذف'}
+                onClick={handleResetAllData}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-xl bg-[var(--danger)] px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                تأكيد الحذف النهائي
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Non-intrusive Feedback Toast */}
       <AnimatePresence>

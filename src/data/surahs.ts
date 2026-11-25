@@ -123,3 +123,17 @@ export const MUSHAF_SURAHS: SurahEntry[] = [
   { number: 113, name: 'الفلق', startPage: 604 },
   { number: 114, name: 'الناس', startPage: 604 },
 ];
+
+export function getSurahEntryForPage(page: number): SurahEntry {
+  const clamped = Math.min(604, Math.max(1, Math.trunc(page)));
+  let matched = MUSHAF_SURAHS[0];
+  for (const s of MUSHAF_SURAHS) {
+    if (s.startPage <= clamped) {
+      matched = s;
+    } else {
+      break;
+    }
+  }
+  return matched;
+}
+
