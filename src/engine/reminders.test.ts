@@ -50,6 +50,8 @@ test('Task reminders and daily reminder can both fire at the same time independe
     due.map((d) => d.id),
     ['sabaq', 'daily']
   );
+  assert.equal(due[0].title, 'وِرْد مُدَّكِر');
+  assert.equal(due[1].title, 'تذكيرك اليومي — وِرْد مُدَّكِر');
 });
 
 test('Changing daily reminder time allows firing at the newly customized time', () => {

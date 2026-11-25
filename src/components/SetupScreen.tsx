@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { BookOpen, Lock, ShieldCheck } from 'lucide-react';
+import { Lock, ShieldCheck } from 'lucide-react';
 import { addMonths, formatShortArabicDate, getTodayLocalISO } from '../engine/planner';
 import type { MemorizationOrder } from '../types/plan';
+import { AppLogo } from './AppLogo';
 
 interface SetupScreenProps {
   onConfirmPlan: (startDate: string, order: MemorizationOrder) => void;
@@ -34,11 +35,11 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
     <div className="min-h-screen bg-[var(--bg-canvas)] px-4 py-8 md:py-14">
       <div className="mx-auto max-w-3xl">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
-            <BookOpen className="h-6 w-6" />
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--accent)]/25 bg-[linear-gradient(145deg,var(--accent-soft)_0%,var(--bg-surface)_100%)] text-[var(--accent)] shadow-sm">
+            <AppLogo variant="badge" className="h-11 w-11" />
           </div>
-          <h1 className="font-display text-3xl font-bold text-[var(--text-primary)] md:text-4xl">
-            مِحراب الحفظ
+          <h1 className="font-display text-3xl font-bold leading-relaxed text-[var(--text-primary)] md:text-4xl">
+            وِرْد مُدَّكِر
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-sm text-[var(--text-secondary)] md:text-base">
             خطة هادئة ثابتة لحفظ القرآن الكريم كاملاً في ٣ سنوات وفق مصحف المدينة المنورة (٦٠٤ صفحات)

@@ -1,26 +1,113 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="112" fill="#1f5e4b" />
-  <rect x="24" y="24" width="464" height="464" rx="92" fill="none" stroke="#d6ac5b" stroke-opacity="0.35" stroke-width="6" />
-  <!-- Mihrab arch -->
-  <path
-    d="M132 396V228c0-68.5 55.5-124 124-124s124 55.5 124 124v168"
+  <defs>
+    <linearGradient id="bgGrad" x1="64" y1="40" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#194d3d" />
+      <stop offset="52%" stop-color="#154234" />
+      <stop offset="100%" stop-color="#0d2b22" />
+    </linearGradient>
+    <radialGradient id="aura" cx="50%" cy="46%" r="44%">
+      <stop offset="0%" stop-color="#f7e4b2" stop-opacity="0.22" />
+      <stop offset="55%" stop-color="#c9a45c" stop-opacity="0.07" />
+      <stop offset="100%" stop-color="#0d2b22" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="goldStroke" x1="128" y1="80" x2="384" y2="424" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f4dea8" />
+      <stop offset="50%" stop-color="#d7b167" />
+      <stop offset="100%" stop-color="#ba9047" />
+    </linearGradient>
+    <linearGradient id="pageFillLeft" x1="136" y1="210" x2="256" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fffdf9" />
+      <stop offset="100%" stop-color="#efe6d4" />
+    </linearGradient>
+    <linearGradient id="pageFillRight" x1="376" y1="210" x2="256" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fcf8ef" />
+      <stop offset="100%" stop-color="#eae0ca" />
+    </linearGradient>
+  </defs>
+
+  <!-- Velvet emerald squircle background -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad)" />
+  <rect width="512" height="512" rx="116" fill="url(#aura)" />
+
+  <!-- Subtle outer luxury hairline border -->
+  <rect
+    x="26"
+    y="26"
+    width="460"
+    height="460"
+    rx="94"
     fill="none"
-    stroke="#d6ac5b"
-    stroke-width="18"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    stroke="url(#goldStroke)"
+    stroke-opacity="0.32"
+    stroke-width="3"
   />
-  <!-- Open Mushaf pages -->
+
+  <!-- Soft scalloped Rub el Hizb halo -->
+  <g stroke="url(#goldStroke)" fill="none">
+    <rect
+      x="114"
+      y="114"
+      width="284"
+      height="284"
+      rx="60"
+      stroke-opacity="0.28"
+      stroke-width="3.5"
+    />
+    <rect
+      x="114"
+      y="114"
+      width="284"
+      height="284"
+      rx="60"
+      transform="rotate(45 256 256)"
+      stroke-opacity="0.24"
+      stroke-width="3.5"
+    />
+    <circle cx="256" cy="256" r="172" stroke-opacity="0.16" stroke-width="2" stroke-dasharray="6 10" />
+  </g>
+
+  <!-- Slender centered crescent & star crown -->
   <path
-    d="M256 218c-28-18-62-22-94-12v144c32-10 66-6 94 12 28-18 62-22 94-12V206c-32-10-66-6-94 12z"
-    fill="#f6f7f5"
-    stroke="#d6ac5b"
-    stroke-width="10"
+    d="M259 109a41 41 0 1 0 42 59 34 34 0 0 1-44-43 34 34 0 0 1 2-16Z"
+    fill="url(#goldStroke)"
+  />
+  <path
+    d="M289 112l4.5 10.5 10.5 4.5-10.5 4.5-4.5 10.5-4.5-10.5-10.5-4.5 10.5-4.5 4.5-10.5Z"
+    fill="#faecc2"
+  />
+
+  <!-- Flowing open Mushaf pages (left & right leaves) -->
+  <path
+    d="M256 236c-32-25-75-31-114-16-8 3-13 10-13 18v103c0 12 11 20 22 17 37-11 75-6 105 18V236Z"
+    fill="url(#pageFillLeft)"
+    stroke="url(#goldStroke)"
+    stroke-width="4.5"
     stroke-linejoin="round"
   />
-  <line x1="256" y1="218" x2="256" y2="362" stroke="#1f5e4b" stroke-width="8" stroke-linecap="round" />
-  <line x1="186" y1="252" x2="232" y2="258" stroke="#1f5e4b" stroke-opacity="0.45" stroke-width="8" stroke-linecap="round" />
-  <line x1="186" y1="286" x2="232" y2="292" stroke="#1f5e4b" stroke-opacity="0.45" stroke-width="8" stroke-linecap="round" />
-  <line x1="280" y1="258" x2="326" y2="252" stroke="#1f5e4b" stroke-opacity="0.45" stroke-width="8" stroke-linecap="round" />
-  <line x1="280" y1="292" x2="326" y2="286" stroke="#1f5e4b" stroke-opacity="0.45" stroke-width="8" stroke-linecap="round" />
+  <path
+    d="M256 236c32-25 75-31 114-16 8 3 13 10 13 18v103c0 12-11 20-22 17-37-11-75-6-105 18V236Z"
+    fill="url(#pageFillRight)"
+    stroke="url(#goldStroke)"
+    stroke-width="4.5"
+    stroke-linejoin="round"
+  />
+
+  <!-- Subtle spine crease -->
+  <path
+    d="M256 238v135"
+    stroke="#b68c44"
+    stroke-opacity="0.6"
+    stroke-width="3.5"
+    stroke-linecap="round"
+  />
+
+  <!-- Gentle page calligraphy lines -->
+  <g stroke="#1b5442" stroke-opacity="0.32" stroke-width="5" stroke-linecap="round" fill="none">
+    <path d="M162 263c22-5 44-2 64 6" />
+    <path d="M162 294c22-5 44-2 64 6" />
+    <path d="M162 325c20-4 40-2 58 5" />
+    <path d="M350 263c-22-5-44-2-64 6" />
+    <path d="M350 294c-22-5-44-2-64 6" />
+    <path d="M350 325c-20-4-40-2-58 5" />
+  </g>
 </svg>

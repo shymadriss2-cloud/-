@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
-  BookOpen,
   BookOpenCheck,
   CalendarDays,
   Grid3X3,
@@ -15,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import { AppLogo } from './components/AppLogo';
 import { CelebrationModal } from './components/CelebrationModal';
 import { DuasScreen } from './components/DuasScreen';
 import { ThemePaletteProvider } from './components/IslamicOrnament';
@@ -491,12 +491,12 @@ export default function App() {
           {/* Desktop Right RTL Sidebar */}
           <aside className="card-elevated relative z-10 hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[linear-gradient(180deg,var(--bg-sidebar)_0%,color-mix(in_srgb,var(--accent-soft)_42%,var(--bg-sidebar))_100%)] lg:flex lg:flex-col lg:justify-between">
             <div className="p-5">
-              <div className="flex items-center gap-2.5 border-b border-[var(--border-hairline)] pb-4">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--accent)]/25 bg-[var(--accent)] text-[var(--accent-ink)] shadow-xs">
-                  <BookOpen className="h-5 w-5" />
+              <div className="flex items-center gap-3 border-b border-[var(--border-hairline)] pb-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--accent)]/25 bg-[linear-gradient(145deg,var(--accent-soft)_0%,var(--bg-surface)_100%)] text-[var(--accent)] shadow-xs">
+                  <AppLogo variant="badge" className="h-7 w-7" />
                 </div>
                 <span className="font-display text-xl font-bold whitespace-nowrap text-[var(--text-primary)]">
-                  مِحراب الحفظ
+                  وِرْد مُدَّكِر
                 </span>
               </div>
 
@@ -616,8 +616,8 @@ export default function App() {
           {/* Compact Top Header (<= 56px on mobile) */}
           <header className="card-elevated sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-t-2 border-t-[var(--accent)] border-b border-b-[var(--border-hairline)] bg-[var(--bg-header)] px-4 backdrop-blur-md lg:h-16 lg:px-8">
             <div className="flex items-center gap-2 lg:hidden">
-              <BookOpen className="h-5 w-5 text-[var(--accent)]" />
-              <span className="font-display text-lg font-bold whitespace-nowrap">مِحراب الحفظ</span>
+              <AppLogo variant="badge" className="h-7 w-7 shrink-0 text-[var(--accent)]" />
+              <span className="font-display text-lg font-bold whitespace-nowrap">وِرْد مُدَّكِر</span>
               {todayFocus.primaryPage !== null && (
                 <button
                   type="button"

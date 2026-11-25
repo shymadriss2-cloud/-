@@ -96,7 +96,7 @@ export function SettingsScreen({
 
   const handleTestNotification = () => {
     if (notificationSupported && Notification.permission === 'granted') {
-      new Notification('مِحراب الحفظ', {
+      new Notification('وِرْد مُدَّكِر', {
         body: 'حان وقت وردك القرآني الهادئ — بارك الله في وقتك.',
       });
       setStatusMessage('تم إرسال إشعار تجريبي.');
@@ -107,7 +107,7 @@ export function SettingsScreen({
 
   const handleTestDailyReminder = () => {
     if (notificationSupported && Notification.permission === 'granted') {
-      new Notification('تذكيرك اليومي — مِحراب الحفظ', {
+      new Notification('تذكيرك اليومي — وِرْد مُدَّكِر', {
         body: 'لا تنسَ وردك القرآني اليوم، قليل دائم خير من كثير منقطع.',
       });
       setStatusMessage('تم إرسال إشعار التذكير اليومي التجريبي.');
@@ -121,7 +121,7 @@ export function SettingsScreen({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mihrab-quran-backup-${plan.startDate}.json`;
+    a.download = `wird-muddakkir-backup-${plan.startDate}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setStatusMessage('تم تصدير نسخة احتياطية من بياناتك بصيغة JSON.');

@@ -36,7 +36,7 @@ export function getDueReminders(
         due.push({
           fireKey,
           id,
-          title: 'مِحراب الحفظ',
+          title: 'وِرْد مُدَّكِر',
           body,
         });
       }
@@ -49,7 +49,7 @@ export function getDueReminders(
       due.push({
         fireKey,
         id: 'daily',
-        title: 'تذكيرك اليومي — مِحراب الحفظ',
+        title: 'تذكيرك اليومي — وِرْد مُدَّكِر',
         body: 'لا تنسَ وردك القرآني اليوم، قليل دائم خير من كثير منقطع.',
       });
     }
