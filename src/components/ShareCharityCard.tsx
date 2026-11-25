@@ -92,7 +92,7 @@ export function ShareCharityCard({ variant = 'setup' }: ShareCharityCardProps) {
           هذا التطبيق وقفٌ لله تعالى. نسأل الله أن يجعله صدقةً جاريةً عن صاحبه، وعن المسلمين والمسلمات، الأحياء منهم والأموات، إلى يوم الدين.
         </p>
         <p className="font-medium text-[var(--accent)]">فإن نفعك فشاركه مع من تحب.</p>
-        <div className="space-y-1.5 border-t border-[var(--border-hairline)] pt-2.5 text-[var(--text-secondary)]">
+        <div className="space-y-1.5 border-t border-[var(--border-hairline)] pt-2.5 text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">
           <p className="font-display">
             «مَنْ دَلَّ عَلَى خَيْرٍ فَلَهُ مِثْلُ أَجْرِ فَاعِلِهِ» (رواه مسلم)
           </p>

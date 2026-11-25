@@ -98,10 +98,10 @@ export function MushafMapScreen({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-1">
+          <div className="flex flex-wrap items-center gap-1 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-1">
             {(
               [
-                { id: 'all', label: 'الكل (٦٠٤)' },
+                { id: 'all', label: 'الكل (604)' },
                 { id: 'strong', label: 'متقن' },
                 { id: 'memorized', label: 'محفوظ' },
                 { id: 'needs_review', label: 'يحتاج مراجعة' },
@@ -112,7 +112,7 @@ export function MushafMapScreen({
                 key={tab.id}
                 type="button"
                 onClick={() => setFilter(tab.id)}
-                className={`h-9 rounded-lg px-3 text-xs font-medium whitespace-nowrap transition-colors ${
+                className={`h-8 rounded-lg px-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
                   filter === tab.id
                     ? 'bg-[var(--accent)] text-[var(--accent-ink)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'

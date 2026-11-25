@@ -75,9 +75,9 @@ export function PWAInstallButton({ variant = 'sidebar' }: PWAInstallButtonProps)
                 </button>
               </div>
               <ol className="mt-3 space-y-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                <li>١. اضغط على زر <strong>المشاركة (Share)</strong> في شريط Safari.</li>
-                <li>٢. مرّر للأسفل واختر <strong>إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong>.</li>
-                <li>٣. اضغط <strong>إضافة</strong> ليعمل التطبيق دون اتصال كبرنامج مستقل.</li>
+                <li>1. اضغط على زر <strong>المشاركة (Share)</strong> في شريط Safari.</li>
+                <li>2. مرّر للأسفل واختر <strong>إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong>.</li>
+                <li>3. اضغط <strong>إضافة</strong> ليعمل التطبيق دون اتصال كبرنامج مستقل.</li>
               </ol>
               <button
                 type="button"

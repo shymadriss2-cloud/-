@@ -3,7 +3,7 @@ import { Bell, CalendarCheck2, Check, Clock, Download, Lock, Moon, Palette, Sun,
 import { motion } from 'motion/react';
 import { COLOR_PALETTES } from '../data/palettes';
 import { formatShortArabicDate, type PlanTimelineSummary } from '../engine/planner';
-import { PLAN_TRACKS } from '../engine/plans';
+import { getDisplayTrackTitle } from '../engine/plans';
 import type { AppColorPalette, AppState, PlanConfig, ReminderSettings } from '../types/plan';
 import { validateImportedState } from '../utils/storage';
 import { HeroCornerArabesque, ThemeEmblem } from './IslamicOrnament';
@@ -30,7 +30,8 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
-  const activeTrack = PLAN_TRACKS[plan.trackId ?? 'three_years'];
+  const isLegacyThreeYear = !plan.trackId || plan.trackId === 'three_years';
+  const trackTitle = getDisplayTrackTitle(plan.trackId ?? 'three_years');
 
   const notificationSupported = typeof window !== 'undefined' && 'Notification' in window;
   const [permState, setPermState] = useState<string>(() =>
@@ -182,16 +183,16 @@ export function SettingsScreen({
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
                 الخطة المختارة:{' '}
                 <span className="font-medium text-[var(--text-primary)]">
-                  {activeTrack.title}
+                  {trackTitle}
                 </span>
                 {' · '}
                 {plan.direction === 'backward'
-                  ? `من صفحة ${plan.startPage ?? 604} تنازلياً`
+                  ? `من صفحة ${plan.startPage ?? 604} عكس ترتيب المصحف`
                   : plan.startPage
-                  ? `من صفحة ${plan.startPage} تصاعدياً`
+                  ? `من صفحة ${plan.startPage} بترتيب المصحف`
                   : plan.order === 'A'
-                  ? 'أ (من الفاتحة صعوداً)'
-                  : 'ب (من جزء عمّ نزولاً)'}
+                  ? 'أ (بترتيب المصحف)'
+                  : 'ب (عكس ترتيب المصحف)'}
               </p>
             </div>
           </div>
@@ -201,7 +202,7 @@ export function SettingsScreen({
           </span>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className={`mt-5 grid gap-3 ${isLegacyThreeYear ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
           <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-4">
             <p className="text-xs text-[var(--text-muted)]">تاريخ البداية</p>
             <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--text-primary)]">
@@ -219,22 +220,24 @@ export function SettingsScreen({
               {formatShortArabicDate(timeline.memorizationEndDate)}
             </p>
             <p className="mt-1 text-xs tabular-nums text-[var(--text-secondary)]">
-              إتمام ٦٠٤ صفحات · متبقي {timeline.daysRemainingToMemorization} يوم
+              إتمام 604 صفحات · متبقي {timeline.daysRemainingToMemorization} يوم
             </p>
           </div>
 
-          <div
-            data-testid="settings-consolidation-end-date"
-            className="rounded-xl border border-[var(--gold)]/35 bg-[var(--gold-soft)]/45 p-4"
-          >
-            <p className="text-xs font-medium text-[var(--gold)]">موعد إنهاء التثبيت</p>
-            <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--text-primary)]">
-              {formatShortArabicDate(timeline.consolidationEndDate)}
-            </p>
-            <p className="mt-1 text-xs tabular-nums text-[var(--text-secondary)]">
-              ختام المراجعة الشاملة · متبقي {timeline.daysRemainingToConsolidation} يوم
-            </p>
-          </div>
+          {isLegacyThreeYear && (
+            <div
+              data-testid="settings-consolidation-end-date"
+              className="rounded-xl border border-[var(--gold)]/35 bg-[var(--gold-soft)]/45 p-4"
+            >
+              <p className="text-xs font-medium text-[var(--gold)]">موعد إنهاء التثبيت</p>
+              <p className="mt-1.5 text-base font-bold tabular-nums text-[var(--text-primary)]">
+                {formatShortArabicDate(timeline.consolidationEndDate)}
+              </p>
+              <p className="mt-1 text-xs tabular-nums text-[var(--text-secondary)]">
+                ختام المراجعة الشاملة · متبقي {timeline.daysRemainingToConsolidation} يوم
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

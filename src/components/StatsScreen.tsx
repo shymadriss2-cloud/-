@@ -20,14 +20,17 @@ import {
   getPagesPerWeekLast3Months,
   type WeeklyStatsPoint,
 } from '../engine/planner';
-import type { PageProgress } from '../types/plan';
+import { getPlanWeeklyGoal } from '../engine/plans';
+import type { PageProgress, PlanTrackId } from '../types/plan';
 import { ProgressRing } from './ProgressRing';
 import { StreakFlame } from './StreakFlame';
 
 interface StatsScreenProps {
   pageProgress: Record<number, PageProgress>;
+  trackId?: PlanTrackId;
   streak: number;
   isTodayCompleted: boolean;
+  hasTodayTasks?: boolean;
   todayIso: string;
   onResolveWeakPage: (page: number) => void;
 }
@@ -55,11 +58,14 @@ function WeeklyChartTooltip({ active, payload }: CustomTooltipProps) {
 
 export function StatsScreen({
   pageProgress,
+  trackId = 'three_years',
   streak,
   isTodayCompleted,
+  hasTodayTasks = true,
   todayIso,
   onResolveWeakPage,
 }: StatsScreenProps) {
+  const weeklyGoal = getPlanWeeklyGoal(trackId);
   const stats = useMemo(() => getMemorizedStats(pageProgress), [pageProgress]);
   const monthlyStats = useMemo(() => getPagesPerMonthStats(pageProgress), [pageProgress]);
   const weeklyStats = useMemo(
@@ -122,7 +128,11 @@ export function StatsScreen({
               {streak} يوم
             </p>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              {isTodayCompleted ? 'الشعلة مشتعلة — أتممت اليوم' : 'منطفئة — بانتظار إتمام اليوم'}
+              {isTodayCompleted
+                ? 'الشعلة مشتعلة — أتممت اليوم'
+                : !hasTodayTasks
+                ? 'يوم راحة مجدول'
+                : 'منطفئة — بانتظار إتمام اليوم'}
             </p>
           </div>
           <StreakFlame lit={isTodayCompleted} size="md" testId="stats-streak-flame" />
@@ -170,22 +180,23 @@ export function StatsScreen({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              الصفحات المحفوظة أسبوعياً (آخر ٣ أشهر)
+              الصفحات المحفوظة أسبوعياً (آخر 3 أشهر)
             </h2>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-              متابعة الانتظام الأسبوعي مقارنة بالهدف الثابت (٥ صفحات في الأسبوع)
+            <p data-testid="stats-weekly-goal-subtitle" className="mt-0.5 text-xs text-[var(--text-muted)]">
+              متابعة الانتظام الأسبوعي مقارنة بالهدف الثابت ({weeklyGoal}{' '}
+              {weeklyGoal === 5 || weeklyGoal === 6 ? 'صفحات' : 'صفحة'} في الأسبوع)
             </p>
           </div>
           <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)]">
             <span className="tabular-nums">
-              الإجمالي في ٣ أشهر:{' '}
+              الإجمالي في 3 أشهر:{' '}
               <strong className="font-semibold text-[var(--text-primary)]">
                 {totalLast3Months} صفحة
               </strong>
             </span>
-            <span className="inline-flex items-center gap-1.5">
+            <span data-testid="stats-weekly-goal-legend" className="inline-flex items-center gap-1.5">
               <span className="inline-block h-0.5 w-4 border-t-2 border-dashed border-[var(--gold)]" />
-              <span>هدف الخطة (٥/أسبوع)</span>
+              <span>هدف الخطة ({weeklyGoal}/أسبوع)</span>
             </span>
           </div>
         </div>
@@ -209,7 +220,7 @@ export function StatsScreen({
               />
               <YAxis
                 allowDecimals={false}
-                domain={[0, (dataMax: number) => Math.max(6, dataMax)]}
+                domain={[0, (dataMax: number) => Math.max(Math.ceil(weeklyGoal) + 1, dataMax)]}
                 tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
@@ -220,7 +231,7 @@ export function StatsScreen({
                 cursor={{ fill: 'var(--bg-subtle)', opacity: 0.6 }}
               />
               <ReferenceLine
-                y={5}
+                y={weeklyGoal}
                 stroke="var(--gold)"
                 strokeDasharray="4 4"
                 strokeWidth={1.5}

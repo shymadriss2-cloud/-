@@ -26,7 +26,7 @@ export function getDueReminders(
   if (reminders.enabled) {
     const taskEntries: Array<['sabaq' | 'sabqi' | 'manzil', string, string]> = [
       ['sabaq', reminders.sabaqTime, 'حان موعد حفظ السبق اليومي'],
-      ['sabqi', reminders.sabqiTime, 'حان موعد مراجعة السبقي (آخر ٧ صفحات)'],
+      ['sabqi', reminders.sabqiTime, 'حان موعد مراجعة السبقي (آخر 7 صفحات)'],
       ['manzil', reminders.manzilTime, 'حان موعد مراجعة المنزل قبل النوم'],
     ];
 

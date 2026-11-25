@@ -16,23 +16,33 @@ interface TodayPageBadgeProps {
 }
 
 function getBadgeTitle(focus: TodayPageFocusStatus): string {
+  if (focus.preSabaqSundayDDMMYYYY) {
+    return 'اليوم مراجعة وتثبيت';
+  }
   switch (focus.mode) {
     case 'sabaq':
       return 'صفحة الحفظ اليوم';
     case 'friday':
       return 'مراجعة الأسبوع';
     case 'saturday':
-      return focus.primaryPage !== null ? 'صفحة الاستدراك' : 'يوم السبت';
+      return focus.primaryPage !== null ? 'صفحة الاستدراك' : 'اليوم بلا حفظ جديد';
     case 'full_review':
       return 'الجزء المراجَع اليوم';
     case 'consolidation':
-      return 'بداية ورد التثبيت';
+    case 'none':
+      return 'اليوم بلا حفظ جديد';
     default:
       return 'صفحة اليوم';
   }
 }
 
 function getMainDisplay(focus: TodayPageFocusStatus): { main: string; sub: string } {
+  if (focus.preSabaqSundayDDMMYYYY) {
+    return {
+      main: 'تثبيت',
+      sub: `تبدأ صفحات الحفظ الجديدة يوم الأحد ${focus.preSabaqSundayDDMMYYYY}`,
+    };
+  }
   if (focus.mode === 'full_review' && focus.juz !== null) {
     return {
       main: String(focus.juz),
@@ -62,15 +72,27 @@ function getMainDisplay(focus: TodayPageFocusStatus): { main: string; sub: strin
       sub: focus.juz ? `الجزء ${focus.juz}` : 'المصحف الشريف',
     };
   }
+  if (focus.mode === 'consolidation' && !focus.hasReviewWork) {
+    return {
+      main: 'راحة',
+      sub: 'لا توجد صفحات للمراجعة اليوم',
+    };
+  }
   if (focus.primaryPage !== null) {
     return {
       main: String(focus.primaryPage),
       sub: focus.juz ? `الجزء ${focus.juz}` : 'المصحف الشريف',
     };
   }
+  if (focus.hasReviewWork) {
+    return {
+      main: 'مراجعة',
+      sub: 'مراجعة وتثبيت المحفوظ',
+    };
+  }
   return {
-    main: '—',
-    sub: 'يوم راحة أو خارج الجدول',
+    main: 'راحة',
+    sub: 'لا توجد مهام مجدولة اليوم',
   };
 }
 
@@ -78,6 +100,23 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
   const title = getBadgeTitle(focus);
   const { main, sub } = getMainDisplay(focus);
   const completed = focus.isCompleted;
+  const isNoSabaqMode =
+    focus.mode === 'consolidation' ||
+    focus.mode === 'none' ||
+    (focus.mode === 'saturday' && focus.primaryPage === null) ||
+    Boolean(focus.preSabaqSundayDDMMYYYY);
+
+  const pendingBadgeText = isNoSabaqMode
+    ? focus.hasReviewWork
+      ? 'مراجعة'
+      : 'راحة'
+    : 'قيد الحفظ';
+
+  const sidebarPendingBadgeText = isNoSabaqMode
+    ? focus.hasReviewWork
+      ? 'مراجعة'
+      : 'راحة'
+    : 'مطلوب اليوم';
 
   if (variant === 'sidebar') {
     return (
@@ -131,7 +170,7 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
             }`}
           >
             {completed && <CheckCircle2 className="h-3 w-3 shrink-0" />}
-            <span>{completed ? 'تم الإنجاز' : 'مطلوب اليوم'}</span>
+            <span>{completed ? 'تم الإنجاز' : sidebarPendingBadgeText}</span>
           </span>
         </div>
 
@@ -242,7 +281,7 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
       </p>
 
       <p
-        className={`relative z-10 mt-1.5 text-xs font-medium ${
+        className={`relative z-10 mt-1.5 max-w-[190px] text-xs font-medium leading-snug ${
           completed ? 'text-[var(--accent-ink)]/90' : 'text-[var(--text-secondary)]'
         }`}
       >
@@ -262,7 +301,7 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
             ? focus.areAllTasksDone
               ? 'تمت مهام اليوم'
               : 'تم إنهاء الصفحة'
-            : 'قيد الحفظ'}
+            : pendingBadgeText}
         </span>
       </div>
     </motion.div>

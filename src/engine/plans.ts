@@ -15,14 +15,23 @@ export interface PlanTrackDefinition {
 }
 
 /**
- * Integer-division even distribution across N days for P pages:
- * a[i] = floor((i + 1) * P / N) - floor(i * P / N)
+ * Integer ceil division: ceil(a / b) = floor((a + b - 1) / b) for a >= 0, b > 0.
  */
-export function buildEvenCyclePattern(pagesInCycle: number, cycleDays: number): number[] {
+export function ceilDiv(a: number, b: number): number {
+  if (a <= 0) return 0;
+  return Math.floor((a + b - 1) / b);
+}
+
+/**
+ * Integer-division ceil distribution across N days for P pages:
+ * a[i] = ceil((i + 1) * P / N) - ceil(i * P / N)
+ * Starts Day 0 with 1 page and yields D=905 for 20/30, D=1810 for 7/21.
+ */
+export function buildCeilCyclePattern(pagesInCycle: number, cycleDays: number): number[] {
   const pattern: number[] = [];
   for (let i = 0; i < cycleDays; i++) {
-    const cur = Math.floor(((i + 1) * pagesInCycle) / cycleDays);
-    const prev = Math.floor((i * pagesInCycle) / cycleDays);
+    const cur = ceilDiv((i + 1) * pagesInCycle, cycleDays);
+    const prev = ceilDiv(i * pagesInCycle, cycleDays);
     pattern.push(cur - prev);
   }
   return pattern;
@@ -33,7 +42,7 @@ export const PLAN_TRACKS: Record<PlanTrackId, PlanTrackDefinition> = {
     id: 'intensive_1y',
     title: 'سنة مكثفة',
     subtitle: 'لأصحاب الهمم العالية والتفرغ اليومي',
-    rateLabel: 'صفحتان يومياً · ٦ أيام في الأسبوع (١٢ صفحة/أسبوع)',
+    rateLabel: 'صفحتان يومياً · 6 أيام في الأسبوع (12 صفحة/أسبوع)',
     cycleDays: 7,
     pagesPerDay: [2, 2, 2, 2, 2, 2, 0],
     legacyMemorizationDays: 352,
@@ -43,7 +52,7 @@ export const PLAN_TRACKS: Record<PlanTrackId, PlanTrackDefinition> = {
     id: 'two_years',
     title: 'سنتان',
     subtitle: 'حفظ متواصل بوتيرة يومية ميسّرة',
-    rateLabel: 'صفحة يومياً · ٦ أيام في الأسبوع (٦ صفحات/أسبوع)',
+    rateLabel: 'صفحة يومياً · 6 أيام في الأسبوع (6 صفحات/أسبوع)',
     cycleDays: 7,
     pagesPerDay: [1, 1, 1, 1, 1, 1, 0],
     legacyMemorizationDays: 704,
@@ -51,9 +60,9 @@ export const PLAN_TRACKS: Record<PlanTrackId, PlanTrackDefinition> = {
   },
   three_years: {
     id: 'three_years',
-    title: 'ثلاث سنوات (الخطة الحالية)',
+    title: 'ثلاث سنوات (الخطة الأساسية)',
     subtitle: 'الخطة المتوازنة مع التثبيت والمراجعة الشاملة',
-    rateLabel: '٥ صفحات في الأسبوع (الأحد–الخميس + مراجعة الجمعة)',
+    rateLabel: '5 صفحات في الأسبوع (الأحد–الخميس + مراجعة الجمعة)',
     cycleDays: 7,
     pagesPerDay: [1, 1, 1, 1, 1, 0, 0],
     isLegacyThreeYear: true,
@@ -64,21 +73,21 @@ export const PLAN_TRACKS: Record<PlanTrackId, PlanTrackDefinition> = {
     id: 'juz_per_month',
     title: 'جزء كل شهر',
     subtitle: 'وتيرة مرنة متدرجة على مدار الشهر',
-    rateLabel: '٢٠ صفحة كل ٣٠ يوماً موزعة بالتساوي',
+    rateLabel: '20 صفحة كل 30 يوماً موزعة بالتساوي',
     cycleDays: 30,
-    pagesPerDay: buildEvenCyclePattern(20, 30),
-    legacyMemorizationDays: 906,
-    legacyTotalDays: 906,
+    pagesPerDay: buildCeilCyclePattern(20, 30),
+    legacyMemorizationDays: 905,
+    legacyTotalDays: 905,
   },
   five_years: {
     id: 'five_years',
     title: 'خمس سنوات (طويلة الأمد)',
     subtitle: 'خطوة ثابتة هادئة مع المشاغل اليومية',
-    rateLabel: '٧ صفحات كل ٣ أسابيع موزعة بالتساوي',
+    rateLabel: '7 صفحات كل 3 أسابيع موزعة بالتساوي',
     cycleDays: 21,
-    pagesPerDay: buildEvenCyclePattern(7, 21),
-    legacyMemorizationDays: 1812,
-    legacyTotalDays: 1812,
+    pagesPerDay: buildCeilCyclePattern(7, 21),
+    legacyMemorizationDays: 1810,
+    legacyTotalDays: 1810,
   },
 };
 
@@ -247,4 +256,78 @@ export function formatUserPathSummary(plan: PlanConfig, calendar: PlannedDay[]):
 
   return `مسارك: ${planName} · تبدأ من صفحة ${startPage} (${startSurah.name}) · ${directionLabel} · تنتهي عند صفحة ${endPage}`;
 }
+
+export function getDisplayTrackTitle(trackId: PlanTrackId = 'three_years'): string {
+  return trackId === 'three_years' ? 'ثلاث سنوات (الخطة الأساسية)' : PLAN_TRACKS[trackId].title;
+}
+
+export function getPlanWeeklyGoal(trackId: PlanTrackId = 'three_years'): number {
+  switch (trackId) {
+    case 'intensive_1y':
+      return 12;
+    case 'two_years':
+      return 6;
+    case 'three_years':
+      return 5;
+    case 'juz_per_month':
+      return Number(((20 * 7) / 30).toFixed(2)); // 4.67
+    case 'five_years':
+      return Number((7 / 3).toFixed(2)); // 2.33
+  }
+}
+
+function addDaysIsoLocal(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  const yy = String(dt.getUTCFullYear()).padStart(4, '0');
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+function getIsoDayOfWeek(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+export function getThreeYearStartSundayInfo(startDateIso: string): {
+  isFridayOrSaturday: boolean;
+  firstSabaqDateIso: string;
+  firstSabaqDDMMYYYY: string;
+  memorizationEndDateIso: string;
+} {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDateIso.trim());
+  if (!match) {
+    return {
+      isFridayOrSaturday: false,
+      firstSabaqDateIso: startDateIso,
+      firstSabaqDDMMYYYY: '',
+      memorizationEndDateIso: startDateIso,
+    };
+  }
+  const dow = getIsoDayOfWeek(startDateIso);
+  const offsetToFirstSabaq = dow === 5 ? 2 : dow === 6 ? 1 : 0;
+  const firstSabaqDateIso = addDaysIsoLocal(startDateIso, offsetToFirstSabaq);
+
+  // Count forward until 604 Sun-Thu days have occurred starting from startDateIso
+  let memCount = 0;
+  let offset = 0;
+  while (memCount < PLAN_CONFIG.TOTAL_MUSHAF_PAGES) {
+    const curDow = (dow + offset) % 7;
+    if (curDow !== 5 && curDow !== 6) {
+      memCount++;
+      if (memCount === PLAN_CONFIG.TOTAL_MUSHAF_PAGES) break;
+    }
+    offset++;
+  }
+  const memorizationEndDateIso = addDaysIsoLocal(startDateIso, offset);
+
+  return {
+    isFridayOrSaturday: dow === 5 || dow === 6,
+    firstSabaqDateIso,
+    firstSabaqDDMMYYYY: isoToDDMMYYYY(firstSabaqDateIso),
+    memorizationEndDateIso,
+  };
+}
+
 

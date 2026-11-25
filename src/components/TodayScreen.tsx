@@ -331,12 +331,23 @@ export function TodayScreen({
   const dailyDua = getDailyDua(dayIndex);
   const dailyTip = getDailyTip(dayIndex);
 
+  const upcomingJuz = useMemo(() => {
+    const upcomingDay = calendar.find((d) => d.date >= todayIso && d.sabaqJuz !== null);
+    if (upcomingDay?.sabaqJuz) return upcomingDay.sabaqJuz;
+    const firstScheduled = calendar.find((d) => d.sabaqJuz !== null);
+    if (firstScheduled?.sabaqJuz) return firstScheduled.sabaqJuz;
+    if (plan.startPage) return getJuzForPage(plan.startPage);
+    return plan.order === 'B' ? 30 : 1;
+  }, [calendar, todayIso, plan.startPage, plan.order]);
+
   const activeJuz =
     plannedDay?.sabaqJuz ??
     plannedDay?.fullReviewJuz ??
     (plannedDay?.sabqiPages.length
       ? getJuzForPage(plannedDay.sabqiPages[plannedDay.sabqiPages.length - 1])
-      : 1);
+      : plannedDay?.manzilPages.length
+      ? getJuzForPage(plannedDay.manzilPages[0])
+      : upcomingJuz);
   const juzStats = getJuzCompletionStats(pageProgress, activeJuz);
 
   const [teacherNoteDraft, setTeacherNoteDraft] = useState<string>(dayLog?.teacherNote ?? '');
@@ -415,13 +426,13 @@ export function TodayScreen({
     if (trimmedStart !== '') {
       const startNum = Number(trimmedStart);
       if (!Number.isInteger(startNum) || startNum < 1 || startNum > TOTAL_MUSHAF_PAGES) {
-        setRetroError('رقم الصفحة يجب أن يكون بين ١ و ٦٠٤.');
+        setRetroError('رقم الصفحة يجب أن يكون بين 1 و 604.');
         return;
       }
       if (trimmedEnd !== '') {
         const endNum = Number(trimmedEnd);
         if (!Number.isInteger(endNum) || endNum < startNum || endNum > TOTAL_MUSHAF_PAGES) {
-          setRetroError('رقم صفحة النهاية يجب أن يكون أكبر من أو يساوي صفحة البداية وحتى ٦٠٤.');
+          setRetroError('رقم صفحة النهاية يجب أن يكون أكبر من أو يساوي صفحة البداية وحتى 604.');
           return;
         }
         pages = buildPageRange(startNum, endNum);
@@ -485,6 +496,7 @@ export function TodayScreen({
             {(() => {
               const isStreakLit =
                 todayFocus.areAllTasksDone || Boolean(dayLog?.manualConfirmed);
+              const isNoTaskDay = todayFocus.totalTaskCount === 0;
               return (
                 <div
                   data-testid="today-streak-box"
@@ -501,16 +513,20 @@ export function TodayScreen({
                     testId="today-streak-flame"
                   />
                   <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs text-[var(--text-muted)]">سلسلة الاستمرار</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="text-xs whitespace-nowrap text-[var(--text-muted)]">سلسلة الاستمرار</p>
                       <span
-                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${
                           isStreakLit
                             ? 'bg-amber-500/18 text-amber-700 dark:text-amber-300'
                             : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
                         }`}
                       >
-                        {isStreakLit ? 'مشتعلة اليوم' : 'أنجز ورد اليوم للحفاظ عليها'}
+                        {isStreakLit
+                          ? 'مشتعلة اليوم'
+                          : isNoTaskDay
+                          ? 'يوم راحة مجدول'
+                          : 'أنجز وردك للحفاظ عليها'}
                       </span>
                     </div>
                     <p
@@ -581,7 +597,7 @@ export function TodayScreen({
               <p className="mt-1 text-xs text-[var(--text-secondary)]">
                 {memorizedCount >= TOTAL_MUSHAF_PAGES
                   ? `متبقي لإنهاء التثبيت والمراجعة الشاملة: ${timeline.daysRemainingToConsolidation} يوم (حتى ${formatShortArabicDate(timeline.consolidationEndDate)})`
-                  : `المتبقي من المصحف: ${TOTAL_MUSHAF_PAGES - memorizedCount} صفحة · ${timeline.remainingSabaqDays} يوم حفظ مجدول`}
+                  : `المتبقي: ${TOTAL_MUSHAF_PAGES - memorizedCount} صفحة على امتداد ${timeline.remainingPlanSpanDays} يوماً`}
               </p>
             </div>
           </div>
@@ -769,7 +785,7 @@ export function TodayScreen({
                           htmlFor="retro-start-page"
                           className="block text-xs font-medium text-[var(--text-secondary)]"
                         >
-                          من صفحة (إدخال رقمي ١–٦٠٤)
+                          من صفحة (إدخال رقمي 1–604)
                         </label>
                         <input
                           id="retro-start-page"
@@ -912,6 +928,25 @@ export function TodayScreen({
             onCompleteTask(todayIso, 'full_review', plannedDay.fullReviewPages, rating, secs)
           }
         />
+      ) : todayFocus.preSabaqSundayDDMMYYYY ? (
+        <section
+          data-testid="today-pre-sabaq-weekend-card"
+          className="rounded-2xl border border-[var(--accent)]/30 bg-[var(--bg-surface)] p-6"
+        >
+          <p className="text-xs text-[var(--text-muted)]">
+            {plannedDay.isFriday ? 'يوم الجمعة' : 'يوم السبت'} · المراجعة والتهيئة للبدء
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+            اليوم مراجعة وتثبيت
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+            يوما الجمعة والسبت في خطة الثلاث سنوات مخصصان للمراجعة والتثبيت، ولا حفظ جديد فيهما. تبدأ صفحات الحفظ الجديدة يوم الأحد{' '}
+            <span dir="ltr" className="font-semibold tabular-nums text-[var(--text-primary)]">
+              {todayFocus.preSabaqSundayDDMMYYYY}
+            </span>
+            .
+          </p>
+        </section>
       ) : plannedDay.isSaturday ? (
         /* Saturday: Catch-up + Rest */
         <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
@@ -971,7 +1006,7 @@ export function TodayScreen({
                 <div>
                   <p className="text-xs text-[var(--text-muted)]">يوم الجمعة · التثبيت الأسبوعي</p>
                   <h2 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-                    مراجعة صفحات الأسبوع (٥ صفحات) والتسميع
+                    مراجعة صفحات الأسبوع (5 صفحات) والتسميع
                   </h2>
                   <p className="mt-1 text-sm text-[var(--text-secondary)]">
                     {formatPageRangeAr(plannedDay.weeklyReviewPages)}
@@ -1038,7 +1073,7 @@ export function TodayScreen({
                           teacherNoteDraft
                         )
                       }
-                      placeholder="مثال: ضبط التشكيل في أول صفحة ١٤"
+                      placeholder="مثال: ضبط التشكيل في أول صفحة 14"
                       className="h-10 flex-1 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                     />
                     <button
@@ -1066,10 +1101,14 @@ export function TodayScreen({
                   : plannedDay.sabaqPage !== null
                   ? [plannedDay.sabaqPage]
                   : [];
+              const hasPagesToReview =
+                plannedDay.sabqiPages.length > 0 ||
+                plannedDay.manzilPages.length > 0 ||
+                memorizedCount > 0;
               return (
                 <DailyTaskCard
                   kind="sabaq"
-                  title="١. السبق (الحفظ الجديد)"
+                  title="1. السبق (الحفظ الجديد)"
                   subtitle={
                     sabaqPagesToday.length > 1
                       ? `${sabaqPagesToday.length} صفحات جديدة بإتقان وربط`
@@ -1083,7 +1122,9 @@ export function TodayScreen({
                   record={dayLog?.tasks.sabaq}
                   emptyText={
                     plannedDay.phase === 'memorization'
-                      ? 'لا توجد صفحة حفظ جديدة اليوم وفق وتيرة خطتك — ركّز على المراجعة'
+                      ? hasPagesToReview
+                        ? 'لا توجد صفحة حفظ جديدة اليوم وفق وتيرة خطتك — ركّز على المراجعة'
+                        : 'لا توجد صفحة حفظ جديدة اليوم وفق وتيرة خطتك'
                       : 'أتممت حفظ جميع صفحات المصحف — اليوم للتثبيت والمراجعة'
                   }
                   onSubmitRating={(rating, secs) =>
@@ -1096,8 +1137,8 @@ export function TodayScreen({
 
           <DailyTaskCard
             kind="sabqi"
-            title="٢. السبقي (القريب)"
-            subtitle="مراجعة آخر ٧ صفحات محفوظة"
+            title="2. السبقي (القريب)"
+            subtitle="مراجعة آخر 7 صفحات محفوظة"
             suggestedLabel="المقترح: العصر"
             timeValue={taskTimes.sabqi}
             onTimeChange={(val) => onUpdateTaskTime('sabqi', val)}
@@ -1111,14 +1152,14 @@ export function TodayScreen({
 
           <DailyTaskCard
             kind="manzil"
-            title="٣. المنزل (المراجعة الدورية)"
+            title="3. المنزل (المراجعة الدورية)"
             subtitle="تدوير الصفحات الأقدم لترسيخها"
             suggestedLabel="المقترح: قبل النوم"
             timeValue={taskTimes.manzil}
             onTimeChange={(val) => onUpdateTaskTime('manzil', val)}
             pages={plannedDay.manzilPages}
             record={dayLog?.tasks.manzil}
-            emptyText="يبدأ المنزل تلقائياً بعد تجاوز أول ٧ صفحات"
+            emptyText="يبدأ المنزل تلقائياً بعد تجاوز أول 7 صفحات"
             onSubmitRating={(rating, secs) =>
               onCompleteTask(todayIso, 'manzil', plannedDay.manzilPages, rating, secs)
             }
@@ -1237,7 +1278,7 @@ export function TodayScreen({
               onClick={() => onNavigate('tips')}
               className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
-              تصفح ٤٥ نصيحة
+              تصفح 45 نصيحة
             </button>
           </div>
         </section>

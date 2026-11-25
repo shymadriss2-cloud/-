@@ -120,10 +120,16 @@ export function PlanScreen({
                 {pathSummary}
               </p>
             )}
+            <p
+              data-testid="plan-glossary-subtitle"
+              className="mt-1 text-xs text-[var(--text-muted)]"
+            >
+              السبق: الحفظ الجديد · السبقي: مراجعة الأيام الأخيرة · المنزل: المراجعة البعيدة
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-1">
+            <div className="flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-1">
               {(
                 [
                   { id: 'weekly', label: 'الأسبوعي' },
@@ -135,7 +141,7 @@ export function PlanScreen({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`h-9 rounded-lg px-3.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`h-9 rounded-lg px-3 text-xs font-medium whitespace-nowrap transition-colors ${
                     activeTab === tab.id
                       ? 'bg-[var(--accent)] text-[var(--accent-ink)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -150,7 +156,7 @@ export function PlanScreen({
               <button
                 type="button"
                 onClick={jumpToToday}
-                className="h-10 rounded-xl border border-[var(--border-hairline)] px-3.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
+                className="h-10 rounded-xl border border-[var(--border-hairline)] px-3.5 text-xs font-medium whitespace-nowrap text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
               >
                 العودة لليوم
               </button>
@@ -190,18 +196,18 @@ export function PlanScreen({
 
       {activeTab === 'weekly' && (
         <section className="space-y-4">
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-4 py-3">
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 py-3 sm:px-4">
             <button
               type="button"
               onClick={() => setWeekStartIndex((i) => Math.max(0, i - 7))}
               disabled={weekStartIndex === 0}
-              className="inline-flex h-10 items-center gap-1 rounded-xl border border-[var(--border-hairline)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] disabled:opacity-40"
+              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-xl border border-[var(--border-hairline)] px-2.5 text-xs font-medium whitespace-nowrap text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] disabled:opacity-40 sm:px-3"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 shrink-0" />
               <span>الأسبوع السابق</span>
             </button>
 
-            <span className="text-sm font-medium text-[var(--text-primary)]">
+            <span className="text-center text-xs font-medium text-[var(--text-primary)] sm:text-sm">
               {weekDays[0] ? formatShortArabicDate(weekDays[0].date) : ''} —{' '}
               {weekDays[weekDays.length - 1]
                 ? formatShortArabicDate(weekDays[weekDays.length - 1].date)
@@ -214,10 +220,10 @@ export function PlanScreen({
                 setWeekStartIndex((i) => Math.min(Math.max(0, calendar.length - 7), i + 7))
               }
               disabled={weekStartIndex + 7 >= calendar.length}
-              className="inline-flex h-10 items-center gap-1 rounded-xl border border-[var(--border-hairline)] px-3 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] disabled:opacity-40"
+              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-xl border border-[var(--border-hairline)] px-2.5 text-xs font-medium whitespace-nowrap text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] disabled:opacity-40 sm:px-3"
             >
               <span>الأسبوع التالي</span>
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 shrink-0" />
             </button>
           </div>
 
@@ -478,7 +484,7 @@ export function PlanScreen({
                       </div>
 
                       <div>
-                        <p className="text-xs text-[var(--text-muted)]">السبقي (آخر ٧ صفحات)</p>
+                        <p className="text-xs text-[var(--text-muted)]">السبقي (آخر 7 صفحات)</p>
                         <p className="mt-0.5 font-medium text-[var(--text-primary)]">
                           {formatPageRangeAr(inspectedDay.sabqiPages)}
                         </p>

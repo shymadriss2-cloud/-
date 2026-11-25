@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { ArrowRight, Calendar, Check, Lock, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Calendar, Check, Info, Lock, ShieldCheck } from 'lucide-react';
 import { PLAN_CONFIG } from '../config/planConfig';
 import { MUSHAF_SURAHS, getSurahEntryForPage } from '../data/surahs';
 import { buildSequenceFromConfig, JUZ_BEGINNINGS, JUZ_RANGES } from '../engine/mushaf';
@@ -8,6 +8,7 @@ import {
   computeCyclePlanDurationDays,
   formatApproximateYears,
   formatWeeksFromDays,
+  getThreeYearStartSundayInfo,
   isoToDDMMYYYY,
   parseDDMMYYYYToIso,
   PLAN_TRACK_LIST,
@@ -127,8 +128,14 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
 
   const activeTrackDef = selectedTrack ? PLAN_TRACKS[selectedTrack] : null;
 
+  const threeYearStartInfo = useMemo(
+    () => (startDate ? getThreeYearStartSundayInfo(startDate) : null),
+    [startDate]
+  );
+
   const cardDates = useMemo(() => {
     const safeStart = startDate || getTodayLocalISO();
+    const safeThreeYearInfo = getThreeYearStartSundayInfo(safeStart);
     const map: Record<
       PlanTrackId,
       { days: number; weeks: number; years: string; memEndDate: string; fullEndDate?: string }
@@ -144,7 +151,7 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
           days,
           weeks: formatWeeksFromDays(days),
           years: formatApproximateYears(days),
-          memEndDate: addDays(safeStart, days - 1),
+          memEndDate: safeThreeYearInfo.memorizationEndDateIso,
           fullEndDate: addDays(addMonths(safeStart, 36), -1),
         };
       } else {
@@ -405,6 +412,23 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
                   </p>
                 )}
               </div>
+
+              {selectedTrack === 'three_years' && threeYearStartInfo?.isFridayOrSaturday && (
+                <div
+                  role="note"
+                  data-testid="three-year-weekend-notice"
+                  className="mt-3 flex items-start gap-2.5 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-soft)]/50 px-3.5 py-2.5 text-xs leading-relaxed text-[var(--text-primary)]"
+                >
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" />
+                  <p>
+                    يوما الجمعة والسبت في هذه الخطة مخصصان للمراجعة والتثبيت، ولا حفظ جديد فيهما. فتبدأ صفحات الحفظ الجديدة يوم الأحد{' '}
+                    <span dir="ltr" className="font-semibold tabular-nums">
+                      {threeYearStartInfo.firstSabaqDDMMYYYY}
+                    </span>
+                    .
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -711,6 +735,15 @@ export function SetupScreen({ onConfirmPlan }: SetupScreenProps) {
                 <span className="font-semibold text-[var(--text-primary)]">تاريخ الختم المتوقع:</span>{' '}
                 {toLatinDigits(formatShortArabicDate(cardDates[activeTrackDef.id].memEndDate))}
               </p>
+              {selectedTrack === 'three_years' && threeYearStartInfo?.isFridayOrSaturday && (
+                <p data-testid="confirm-first-sabaq-sunday">
+                  <span className="font-semibold text-[var(--text-primary)]">أول يوم حفظ جديد:</span>{' '}
+                  الأحد{' '}
+                  <span dir="ltr" className="tabular-nums">
+                    {threeYearStartInfo.firstSabaqDDMMYYYY}
+                  </span>
+                </p>
+              )}
             </div>
 
             <label className="mt-4 flex cursor-pointer items-center gap-3 text-sm text-[var(--text-primary)]">

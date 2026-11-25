@@ -36,6 +36,7 @@ import { buildMemorizationSequence, buildSequenceFromConfig } from './engine/mus
 import {
   formatUserPathSummary,
   getPlanTotalMonths,
+  getThreeYearStartSundayInfo,
   PLAN_TRACKS,
 } from './engine/plans';
 import {
@@ -202,8 +203,11 @@ export default function App() {
   );
 
   const streak = useMemo(
-    () => (state.plan ? computeCurrentStreak(state.dayLogs, state.plan.startDate, todayIso) : 0),
-    [state.dayLogs, state.plan, todayIso]
+    () =>
+      state.plan
+        ? computeCurrentStreak(state.dayLogs, state.plan.startDate, todayIso, calendar)
+        : 0,
+    [state.dayLogs, state.plan, todayIso, calendar]
   );
 
   const memorizedStats = useMemo(
@@ -219,16 +223,28 @@ export default function App() {
     [calendar, state.plan, todayIso]
   );
 
-  const todayFocus = useMemo(
-    () =>
-      getTodayPageFocusStatus(
-        plannedToday,
-        state.dayLogs[todayIso],
-        state.pageProgress,
-        missedPages
-      ),
-    [plannedToday, state.dayLogs, todayIso, state.pageProgress, missedPages]
-  );
+  const todayFocus = useMemo(() => {
+    const base = getTodayPageFocusStatus(
+      plannedToday,
+      state.dayLogs[todayIso],
+      state.pageProgress,
+      missedPages
+    );
+    if (
+      state.plan &&
+      (!state.plan.trackId || state.plan.trackId === 'three_years') &&
+      todayIso >= state.plan.startDate
+    ) {
+      const startInfo = getThreeYearStartSundayInfo(state.plan.startDate);
+      if (startInfo.isFridayOrSaturday && todayIso < startInfo.firstSabaqDateIso) {
+        return {
+          ...base,
+          preSabaqSundayDDMMYYYY: startInfo.firstSabaqDDMMYYYY,
+        };
+      }
+    }
+    return base;
+  }, [plannedToday, state.dayLogs, todayIso, state.pageProgress, missedPages, state.plan]);
 
   const checkAndTriggerJuzCelebration = (
     nextProgress: AppState['pageProgress'],
@@ -646,7 +662,7 @@ export default function App() {
                   بداية الخطة: {formatShortArabicDate(activePlan.startDate)}
                 </p>
                 <p className="mt-1 tabular-nums">
-                  نسبة الإنجاز: {memorizedStats.percent}% ({memorizedStats.memorizedCount} / ٦٠٤)
+                  نسبة الإنجاز: {memorizedStats.percent}% ({memorizedStats.memorizedCount} / 604)
                 </p>
               </div>
               <PWAInstallButton variant="sidebar" />
@@ -744,7 +760,15 @@ export default function App() {
                 {activeScreen === 'method' && (
                   <MethodScreen
                     todaySabaqPage={plannedToday?.sabaqPage ?? null}
+                    todaySabaqPages={
+                      plannedToday?.sabaqPages && plannedToday.sabaqPages.length > 0
+                        ? plannedToday.sabaqPages
+                        : plannedToday?.sabaqPage !== null && plannedToday?.sabaqPage !== undefined
+                        ? [plannedToday.sabaqPage]
+                        : []
+                    }
                     previousPage={previousPage}
+                    sequence={activeSequence}
                     todayFocus={todayFocus}
                     progress={state.methodProgress}
                     customDurations={state.methodDurations}
@@ -790,10 +814,12 @@ export default function App() {
                 {activeScreen === 'stats' && (
                   <StatsScreen
                     pageProgress={state.pageProgress}
+                    trackId={activePlan.trackId ?? 'three_years'}
                     streak={streak}
                     isTodayCompleted={
                       todayFocus.areAllTasksDone || Boolean(state.dayLogs[todayIso]?.manualConfirmed)
                     }
+                    hasTodayTasks={todayFocus.totalTaskCount > 0}
                     todayIso={todayIso}
                     onResolveWeakPage={handleResolveExtraReview}
                   />

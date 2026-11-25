@@ -132,6 +132,7 @@ export interface PlanTimelineSummary {
   memorizationEndDate: string;
   consolidationEndDate: string;
   daysRemainingToMemorization: number;
+  remainingPlanSpanDays: number;
   daysRemainingToConsolidation: number;
   remainingSabaqDays: number;
   memorizationPercentByTime: number;
@@ -160,6 +161,10 @@ export function getPlanTimelineSummary(
     calendar.length > 0 ? calendar[calendar.length - 1].date : fallbackPlanEnd;
 
   const daysRemainingToMemorization = Math.max(0, diffDays(referenceDate, memorizationEndDate));
+  const remainingPlanSpanDays =
+    referenceDate <= memorizationEndDate
+      ? diffDays(referenceDate, memorizationEndDate) + 1
+      : 0;
   const daysRemainingToConsolidation = Math.max(0, diffDays(referenceDate, consolidationEndDate));
 
   const totalMemSpan = Math.max(1, diffDays(startDate, memorizationEndDate));
@@ -171,6 +176,7 @@ export function getPlanTimelineSummary(
     memorizationEndDate,
     consolidationEndDate,
     daysRemainingToMemorization,
+    remainingPlanSpanDays,
     daysRemainingToConsolidation,
     remainingSabaqDays,
     memorizationPercentByTime,
@@ -186,6 +192,8 @@ export interface TodayPageFocusStatus {
   areAllTasksDone: boolean;
   completedTaskCount: number;
   totalTaskCount: number;
+  hasReviewWork?: boolean;
+  preSabaqSundayDDMMYYYY?: string | null;
 }
 
 export function getTodayPageFocusStatus(
@@ -234,6 +242,7 @@ export function getTodayPageFocusStatus(
       areAllTasksDone: done,
       completedTaskCount: done ? 1 : 0,
       totalTaskCount: missedPages.length > 0 ? 1 : 0,
+      hasReviewWork: missedPages.length > 0,
     };
   }
 
@@ -309,13 +318,18 @@ export function getTodayPageFocusStatus(
 
   return {
     mode: 'consolidation',
-    primaryPage: plannedDay.sabqiPages[0] ?? null,
+    primaryPage: plannedDay.sabqiPages[0] ?? plannedDay.manzilPages[0] ?? null,
     secondaryPages: plannedDay.sabqiPages,
-    juz: plannedDay.sabqiPages[0] ? getJuzForPage(plannedDay.sabqiPages[0]) : null,
+    juz: plannedDay.sabqiPages[0]
+      ? getJuzForPage(plannedDay.sabqiPages[0])
+      : plannedDay.manzilPages[0]
+      ? getJuzForPage(plannedDay.manzilPages[0])
+      : null,
     isCompleted: areAllTasksDone,
     areAllTasksDone,
     completedTaskCount,
     totalTaskCount,
+    hasReviewWork: totalTaskCount > 0,
   };
 }
 
@@ -808,6 +822,17 @@ export function buildPageRange(startPage: number, endPage?: number | null): numb
   return pages;
 }
 
+export function isScheduledRestDay(day: PlannedDay): boolean {
+  if (day.isSaturday && day.phase !== 'full_review') return true;
+  return (
+    day.sabaqPage === null &&
+    day.weeklyReviewPages.length === 0 &&
+    day.fullReviewPages.length === 0 &&
+    day.sabqiPages.length === 0 &&
+    day.manzilPages.length === 0
+  );
+}
+
 export function getUnconfirmedRecentPastDays(
   calendar: PlannedDay[],
   dayLogs: Record<string, DayLog>,
@@ -819,7 +844,7 @@ export function getUnconfirmedRecentPastDays(
   for (const day of calendar) {
     if (day.date >= referenceDate) break;
     if (day.date < earliest) continue;
-    if (day.isSaturday && day.phase !== 'full_review') continue;
+    if (isScheduledRestDay(day)) continue;
     if (!hasDayActivity(dayLogs[day.date])) {
       recent.push(day);
     }
@@ -932,23 +957,38 @@ export function confirmPastDayRecord(params: ConfirmPastDayParams): {
 export function computeCurrentStreak(
   dayLogs: Record<string, DayLog>,
   startDate: string,
-  referenceDate: string
+  referenceDate: string,
+  calendar?: PlannedDay[]
 ): number {
   if (referenceDate < startDate) return 0;
 
+  const restDates = new Set<string>();
+  if (calendar) {
+    for (const d of calendar) {
+      if (isScheduledRestDay(d)) restDates.add(d.date);
+    }
+  }
+
   let cursor = referenceDate;
   if (!hasDayActivity(dayLogs[cursor])) {
-    cursor = addDays(referenceDate, -1);
+    if (restDates.has(cursor)) {
+      while (cursor >= startDate && restDates.has(cursor) && !hasDayActivity(dayLogs[cursor])) {
+        cursor = addDays(cursor, -1);
+      }
+    } else {
+      cursor = addDays(referenceDate, -1);
+    }
   }
 
   let streak = 0;
   while (cursor >= startDate) {
     const dow = getDayOfWeek(cursor);
+    const isRest = restDates.size > 0 ? restDates.has(cursor) : dow === 6;
     if (hasDayActivity(dayLogs[cursor])) {
       streak++;
       cursor = addDays(cursor, -1);
-    } else if (dow === 6 && streak > 0) {
-      // Saturday rest day preserves streak if days before it were active
+    } else if (isRest && streak > 0) {
+      // Scheduled rest day preserves streak if days before it were active
       cursor = addDays(cursor, -1);
     } else {
       break;

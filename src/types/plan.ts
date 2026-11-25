@@ -104,10 +104,16 @@ export interface ReminderSettings {
   dailyReminderTime: string;
 }
 
+export interface PageMethodState {
+  sightReads: number; // 0..10
+  completedSteps: number[]; // step indices 0..4
+}
+
 export interface MethodProgress {
   date: string;
   sightReads: number; // 0..10
   completedSteps: number[]; // step indices 0..4
+  byPage?: Record<number, PageMethodState>;
 }
 
 export interface AppState {

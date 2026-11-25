@@ -2,14 +2,25 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PLAN_CONFIG } from '../config/planConfig';
 import { buildSequenceFromConfig, formatMemorizationPagesAr, formatPageRangeAr } from './mushaf';
-import { addDays, diffDays, generatePlanCalendar, getJuzScheduleSummaries } from './planner';
+import {
+  addDays,
+  computeCurrentStreak,
+  diffDays,
+  generatePlanCalendar,
+  getJuzScheduleSummaries,
+  getPlanTimelineSummary,
+  getUnconfirmedRecentPastDays,
+} from './planner';
 import {
   computeCyclePlanDurationDays,
   formatUserPathSummary,
+  formatWeeksFromDays,
   getCyclePlanMonthNumber,
   getPagesAssignedOnDay,
   getPlanTotalMonths,
+  getPlanWeeklyGoal,
   getRequiredPagesByDayIndex,
+  getThreeYearStartSundayInfo,
   isoToDDMMYYYY,
   parseDDMMYYYYToIso,
   PLAN_TRACKS,
@@ -17,11 +28,16 @@ import {
 } from './plans';
 import { DEFAULT_APP_STATE, hasExistingPlanOrProgress } from '../utils/storage';
 
-test('Cycle plans reach exact target durations: 1y=352, 2y=704, juz/month=906, 5y=1812', () => {
+test('Cycle plans reach exact target durations: 1y=352, 2y=704, juz/month=905, 5y=1810', () => {
   assert.equal(computeCyclePlanDurationDays('intensive_1y'), 352);
   assert.equal(computeCyclePlanDurationDays('two_years'), 704);
-  assert.equal(computeCyclePlanDurationDays('juz_per_month'), 906);
-  assert.equal(computeCyclePlanDurationDays('five_years'), 1812);
+  assert.equal(computeCyclePlanDurationDays('juz_per_month'), 905);
+  assert.equal(computeCyclePlanDurationDays('five_years'), 1810);
+
+  assert.equal(formatWeeksFromDays(905), 130);
+  assert.equal(formatWeeksFromDays(1810), 259);
+  assert.equal(addDays('2026-11-25', 905 - 1), '2029-05-17');
+  assert.equal(addDays('2026-11-25', 1810 - 1), '2031-11-08');
 });
 
 test('Legacy 3-year plan preserves exact 846 memorization days and 1096 total days', () => {
@@ -39,14 +55,100 @@ test('Legacy 3-year plan preserves exact 846 memorization days and 1096 total da
   assert.equal(PLAN_TRACKS.three_years.legacyTotalDays, 1096);
 });
 
-test('Five-year plan assigns 0 pages on days 0 and 1, and exactly 1 page on day 2', () => {
-  assert.equal(getPagesAssignedOnDay('five_years', 0), 0);
-  assert.equal(getPagesAssignedOnDay('five_years', 1), 0);
-  assert.equal(getPagesAssignedOnDay('five_years', 2), 1);
+test('Juz-per-month (20/30) and five-year (7/21) plans start Day 0 with 1 page using integer ceil formula', () => {
+  // Juz per month: pattern repeats [1, 1, 0]
+  assert.equal(getPagesAssignedOnDay('juz_per_month', 0), 1);
+  assert.equal(getPagesAssignedOnDay('juz_per_month', 1), 1);
+  assert.equal(getPagesAssignedOnDay('juz_per_month', 2), 0);
+  assert.equal(getPagesAssignedOnDay('juz_per_month', 3), 1);
 
-  assert.equal(getRequiredPagesByDayIndex('five_years', 0), 0);
-  assert.equal(getRequiredPagesByDayIndex('five_years', 1), 0);
+  assert.equal(getRequiredPagesByDayIndex('juz_per_month', 0), 1);
+  assert.equal(getRequiredPagesByDayIndex('juz_per_month', 1), 2);
+  assert.equal(getRequiredPagesByDayIndex('juz_per_month', 2), 2);
+
+  // Juz per month from Juz Amma (page 582 forward)
+  const juzCal = generatePlanCalendar('2026-11-25', 'B', {
+    trackId: 'juz_per_month',
+    startPage: 582,
+    direction: 'forward',
+  });
+  assert.deepEqual(juzCal[0].sabaqPages, [582]);
+  assert.deepEqual(juzCal[1].sabaqPages, [583]);
+  assert.deepEqual(juzCal[2].sabaqPages, []);
+  assert.deepEqual(juzCal[3].sabaqPages, [584]);
+  const juzTimeline = getPlanTimelineSummary(juzCal, '2026-11-25', '2026-11-25');
+  assert.equal(juzTimeline.memorizationEndDate, '2029-05-17');
+  assert.equal(juzTimeline.remainingPlanSpanDays, 905);
+
+  // Five-year: pages on days 0, 3, 6, ...
+  assert.equal(getPagesAssignedOnDay('five_years', 0), 1);
+  assert.equal(getPagesAssignedOnDay('five_years', 1), 0);
+  assert.equal(getPagesAssignedOnDay('five_years', 2), 0);
+  assert.equal(getPagesAssignedOnDay('five_years', 3), 1);
+
+  assert.equal(getRequiredPagesByDayIndex('five_years', 0), 1);
+  assert.equal(getRequiredPagesByDayIndex('five_years', 1), 1);
   assert.equal(getRequiredPagesByDayIndex('five_years', 2), 1);
+  assert.equal(getRequiredPagesByDayIndex('five_years', 3), 2);
+
+  // Five-year from An-Nas backward
+  const fiveCal = generatePlanCalendar('2026-11-25', 'B', {
+    trackId: 'five_years',
+    startPage: 604,
+    direction: 'backward',
+  });
+  assert.deepEqual(fiveCal[0].sabaqPages, [604]);
+  assert.deepEqual(fiveCal[1].sabaqPages, []);
+  assert.deepEqual(fiveCal[2].sabaqPages, []);
+  assert.deepEqual(fiveCal[3].sabaqPages, [603]);
+  const fiveTimeline = getPlanTimelineSummary(fiveCal, '2026-11-25', '2026-11-25');
+  assert.equal(fiveTimeline.memorizationEndDate, '2031-11-08');
+  assert.equal(fiveTimeline.remainingPlanSpanDays, 1810);
+
+  // Five-year Day 2 (2026-11-26) has no new Sabaq page, only Sabqi review of [604]
+  assert.deepEqual(fiveCal[1].sabqiPages, [604]);
+
+  // Scheduled 0-task rest days (e.g. 2y every 7th day) are skipped in unconfirmed past days and preserve streak
+  const twoYearCal = generatePlanCalendar('2026-11-19', 'A', {
+    trackId: 'two_years',
+    startPage: 1,
+    direction: 'forward',
+  });
+  // Day index 6 is 2026-11-25 (weekly rest day with 0 tasks)
+  const twoYearLogs: Record<string, { date: string; tasks: { sabaq?: { completed: boolean } } }> = {};
+  for (let i = 0; i < 6; i++) {
+    twoYearLogs[twoYearCal[i].date] = {
+      date: twoYearCal[i].date,
+      tasks: { sabaq: { completed: true } },
+    };
+  }
+  const unconfirmed2y = getUnconfirmedRecentPastDays(twoYearCal, twoYearLogs, '2026-11-26');
+  assert.equal(unconfirmed2y.some((d) => d.date === twoYearCal[6].date), false);
+  assert.equal(computeCurrentStreak(twoYearLogs, '2026-11-19', '2026-11-25', twoYearCal), 6);
+});
+
+test('Weekly goals and 3-year weekend start dates compute accurately', () => {
+  assert.equal(getPlanWeeklyGoal('intensive_1y'), 12);
+  assert.equal(getPlanWeeklyGoal('two_years'), 6);
+  assert.equal(getPlanWeeklyGoal('three_years'), 5);
+  assert.equal(getPlanWeeklyGoal('juz_per_month'), 4.67);
+  assert.equal(getPlanWeeklyGoal('five_years'), 2.33);
+
+  const wedInfo = getThreeYearStartSundayInfo('2026-11-25');
+  assert.equal(wedInfo.isFridayOrSaturday, false);
+  assert.equal(wedInfo.memorizationEndDateIso, '2029-03-19');
+
+  const friInfo = getThreeYearStartSundayInfo('2026-11-27');
+  assert.equal(friInfo.isFridayOrSaturday, true);
+  assert.equal(friInfo.firstSabaqDateIso, '2026-11-29');
+  assert.equal(friInfo.firstSabaqDDMMYYYY, '29/11/2026');
+  assert.equal(friInfo.memorizationEndDateIso, '2029-03-21');
+
+  const satInfo = getThreeYearStartSundayInfo('2026-11-28');
+  assert.equal(satInfo.isFridayOrSaturday, true);
+  assert.equal(satInfo.firstSabaqDateIso, '2026-11-29');
+  assert.equal(satInfo.firstSabaqDDMMYYYY, '29/11/2026');
+  assert.equal(satInfo.memorizationEndDateIso, '2029-03-21');
 });
 
 test('Intensive 1y and 2y plans assign 0 pages on every 7th day from startDate', () => {
@@ -151,8 +253,8 @@ test('Month counts use ceil(totalDays / 30.44) for cycle plans and 36 for legacy
 
   assert.equal(getCyclePlanMonthNumber('intensive_1y', 0), 1);
   assert.equal(getCyclePlanMonthNumber('intensive_1y', 351), 12);
-  assert.equal(getCyclePlanMonthNumber('juz_per_month', 905), 30);
-  assert.equal(getCyclePlanMonthNumber('five_years', 1811), 60);
+  assert.equal(getCyclePlanMonthNumber('juz_per_month', 904), 30);
+  assert.equal(getCyclePlanMonthNumber('five_years', 1809), 60);
 });
 
 test('Intensive 1y starting from An-Nas backward assigns [604, 603] on Day 1 and [602, 601] on Day 2', () => {
