@@ -1,5 +1,5 @@
-const APP_CACHE = 'mihrab-quran-app-v1';
-const FONTS_CACHE = 'mihrab-quran-fonts-v1';
+const APP_CACHE = 'wird-muddakkir-app-v2';
+const FONTS_CACHE = 'wird-muddakkir-fonts-v2';
 
 const PRECACHE_URLS = [
   '/',
