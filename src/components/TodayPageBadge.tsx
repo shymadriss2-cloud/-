@@ -51,6 +51,12 @@ function getMainDisplay(focus: TodayPageFocusStatus): { main: string; sub: strin
       sub: 'لا توجد صفحات فائتة',
     };
   }
+  if (focus.mode === 'sabaq' && focus.secondaryPages.length > 1) {
+    return {
+      main: `${focus.secondaryPages[0]}–${focus.secondaryPages[focus.secondaryPages.length - 1]}`,
+      sub: focus.juz ? `الجزء ${focus.juz}` : 'المصحف الشريف',
+    };
+  }
   if (focus.primaryPage !== null) {
     return {
       main: String(focus.primaryPage),
@@ -59,7 +65,7 @@ function getMainDisplay(focus: TodayPageFocusStatus): { main: string; sub: strin
   }
   return {
     main: '—',
-    sub: 'خارج مدة الخطة',
+    sub: 'يوم راحة أو خارج الجدول',
   };
 }
 
@@ -103,7 +109,9 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
         <div className="relative z-10 flex items-center justify-between gap-2">
           <span
             className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${
-              completed ? 'text-[var(--accent-ink)]' : 'text-[var(--accent)]'
+              completed
+                ? 'text-[var(--accent-ink)]'
+                : 'text-[color-mix(in_srgb,var(--accent)_65%,var(--text-primary))]'
             }`}
           >
             <ThemeEmblem className="h-4 w-4 shrink-0" />
@@ -114,7 +122,7 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
             className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-semibold ${
               completed
                 ? 'border border-current/25 bg-black/10 text-[var(--accent-ink)]'
-                : 'bg-[var(--gold-soft)] text-[var(--gold)]'
+                : 'bg-[var(--gold-soft)] text-[color-mix(in_srgb,var(--gold)_55%,var(--text-primary))]'
             }`}
           >
             {completed && <CheckCircle2 className="h-3 w-3 shrink-0" />}
@@ -124,7 +132,12 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
 
         <div className="relative z-10 mt-2.5 flex items-baseline justify-between gap-2">
           <div className="flex items-baseline gap-2">
-            <span className="font-display text-4xl font-bold leading-none tabular-nums">
+            <span
+              dir="ltr"
+              className={`font-display whitespace-nowrap font-bold leading-none tabular-nums ${
+                main.length > 3 ? 'text-2xl' : 'text-4xl'
+              }`}
+            >
               {main}
             </span>
             <span
@@ -184,10 +197,10 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
 
       {/* Centered theme signature medallion behind the giant page number */}
       <HeroCornerArabesque
-        className={`absolute top-1/2 left-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 ${
+        className={`absolute top-1/2 left-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 ${
           completed
-            ? 'text-[var(--accent-ink)] opacity-[0.24]'
-            : 'text-[var(--gold)] opacity-[0.26]'
+            ? 'text-[var(--accent-ink)] opacity-[0.11]'
+            : 'text-[var(--gold)] opacity-[0.12]'
         }`}
       />
 
@@ -200,7 +213,9 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
 
       <div
         className={`relative z-10 mt-0.5 flex items-center gap-1.5 text-xs font-semibold ${
-          completed ? 'text-[var(--accent-ink)]' : 'text-[var(--accent)]'
+          completed
+            ? 'text-[var(--accent-ink)]'
+            : 'text-[color-mix(in_srgb,var(--accent)_65%,var(--text-primary))]'
         }`}
       >
         <ThemeEmblem className="h-4 w-4 shrink-0" />
@@ -208,7 +223,12 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
         <ThemeEmblem className="h-4 w-4 shrink-0" />
       </div>
 
-      <p className="font-display relative z-10 mt-1.5 text-5xl font-bold leading-none tabular-nums sm:text-[3.5rem]">
+      <p
+        dir="ltr"
+        className={`font-display relative z-10 mt-1.5 whitespace-nowrap font-bold leading-none tabular-nums ${
+          main.length > 3 ? 'text-4xl sm:text-[2.6rem]' : 'text-5xl sm:text-[3.5rem]'
+        }`}
+      >
         {main}
       </p>
 
@@ -224,7 +244,7 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
         className={`relative z-10 mt-2.5 inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-[11px] font-semibold ${
           completed
             ? 'border border-current/30 bg-black/12 text-[var(--accent-ink)]'
-            : 'border border-[var(--gold)]/35 bg-[var(--gold-soft)] text-[var(--gold)]'
+            : 'border border-[var(--gold)]/35 bg-[var(--gold-soft)] text-[color-mix(in_srgb,var(--gold)_55%,var(--text-primary))]'
         }`}
       >
         {completed && <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}

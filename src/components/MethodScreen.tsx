@@ -181,7 +181,7 @@ export function MethodScreen({
               testId="method-hero-page-badge"
             />
             <div>
-              <p className="text-xs text-[var(--text-muted)]">منهجية متدرجة بمؤقتات قابلة للتعديل</p>
+              <p className="text-xs font-medium text-[var(--text-secondary)]">منهجية متدرجة بمؤقتات قابلة للتعديل</p>
               <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
                 طريقة الحفظ الفعّالة
               </h1>

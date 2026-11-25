@@ -177,3 +177,15 @@ export function validateImportedState(raw: unknown): AppState | null {
         : {},
   };
 }
+
+/**
+ * Returns true when the user already has a saved locked plan or any recorded progress.
+ * Guarantees the first-run plan selection screen never appears again for existing users.
+ */
+export function hasExistingPlanOrProgress(state: AppState): boolean {
+  if (state.plan && state.plan.locked) return true;
+  if (Object.keys(state.dayLogs || {}).length > 0) return true;
+  if (Object.keys(state.pageProgress || {}).length > 0) return true;
+  return false;
+}
+

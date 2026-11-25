@@ -24,7 +24,7 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { PlanScreen } from './components/PlanScreen';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { SettingsScreen } from './components/SettingsScreen';
-import { SetupScreen } from './components/SetupScreen';
+import { SetupScreen, type SetupConfirmPayload } from './components/SetupScreen';
 import { StatsScreen } from './components/StatsScreen';
 import { TipsScreen } from './components/TipsScreen';
 import { TodayPageBadge } from './components/TodayPageBadge';
@@ -60,7 +60,7 @@ import type {
 import {
   applyAppearanceToDocument,
   buildAutostartSeedState,
-  DEFAULT_APP_STATE,
+  hasExistingPlanOrProgress,
   loadAppState,
   saveAppState,
 } from './utils/storage';
@@ -168,7 +168,11 @@ export default function App() {
 
   const calendar = useMemo(() => {
     if (!state.plan) return [];
-    return generatePlanCalendar(state.plan.startDate, state.plan.order);
+    return generatePlanCalendar(state.plan.startDate, state.plan.order, {
+      trackId: state.plan.trackId,
+      startPage: state.plan.startPage,
+      direction: state.plan.direction,
+    });
   }, [state.plan]);
 
   const plannedToday = useMemo(
@@ -228,12 +232,16 @@ export default function App() {
     return alreadyCelebrated;
   };
 
-  const handleConfirmPlan = (startDate: string, order: MemorizationOrder) => {
+  const handleConfirmPlan = (payload: SetupConfirmPayload) => {
     setState((prev) => ({
       ...prev,
       plan: {
-        startDate,
-        order,
+        startDate: payload.startDate,
+        order: payload.order,
+        trackId: payload.trackId,
+        startMode: payload.startMode,
+        startPage: payload.startPage,
+        direction: payload.direction,
         locked: true,
         createdAt: new Date().toISOString(),
       },
@@ -452,15 +460,18 @@ export default function App() {
     setActiveScreen('today');
   };
 
-  const handleResetAllData = () => {
-    setState(DEFAULT_APP_STATE);
-    setActiveScreen('today');
-  };
-
-  // First-run setup gate if plan is not yet locked
-  if (!state.plan || !state.plan.locked) {
+  // First-run setup gate ONLY if no saved locked plan and no existing memorization progress
+  if (!hasExistingPlanOrProgress(state)) {
     return <SetupScreen onConfirmPlan={handleConfirmPlan} />;
   }
+
+  // Defensive fallback if an existing user has recorded progress without a plan object
+  const activePlan = state.plan ?? {
+    startDate: todayIso,
+    order: 'A' as MemorizationOrder,
+    locked: true,
+    createdAt: new Date().toISOString(),
+  };
 
   const previousPage =
     plannedToday?.sabqiPages && plannedToday.sabqiPages.length > 0
@@ -601,7 +612,7 @@ export default function App() {
 
               <div className="border-t border-[var(--border-hairline)] pt-3">
                 <p className="font-medium text-[var(--text-secondary)]">
-                  بداية الخطة: {formatShortArabicDate(state.plan.startDate)}
+                  بداية الخطة: {formatShortArabicDate(activePlan.startDate)}
                 </p>
                 <p className="mt-1 tabular-nums">
                   نسبة الإنجاز: {memorizedStats.percent}% ({memorizedStats.memorizedCount} / ٦٠٤)
@@ -640,7 +651,13 @@ export default function App() {
             </span>
 
             <span className="hidden text-xs text-[var(--text-muted)] sm:inline">
-              {plannedToday ? `الشهر ${plannedToday.monthNumber} من ٣٦` : 'خطة الـ ٣ سنوات'}
+              {plannedToday
+                ? `الشهر ${plannedToday.monthNumber} من ${
+                    activePlan.trackId && activePlan.trackId !== 'three_years'
+                      ? calendar[calendar.length - 1]?.monthNumber ?? 12
+                      : '٣٦'
+                  }`
+                : 'خطة الـ ٣ سنوات'}
             </span>
 
             <motion.button
@@ -668,7 +685,7 @@ export default function App() {
                 {activeScreen === 'today' && timeline && (
                   <TodayScreen
                     todayIso={todayIso}
-                    startDate={state.plan.startDate}
+                    startDate={activePlan.startDate}
                     calendar={calendar}
                     plannedDay={plannedToday}
                     dayLog={state.dayLogs[todayIso]}
@@ -704,8 +721,14 @@ export default function App() {
                     onUpdateProgress={handleUpdateMethodProgress}
                     onUpdateDuration={handleUpdateMethodDuration}
                     onCompleteTodaySabaq={(rating) => {
-                      if (plannedToday?.sabaqPage !== null && plannedToday?.sabaqPage !== undefined) {
-                        handleCompleteTask(todayIso, 'sabaq', [plannedToday.sabaqPage], rating, 0);
+                      const sabaqPages =
+                        plannedToday?.sabaqPages && plannedToday.sabaqPages.length > 0
+                          ? plannedToday.sabaqPages
+                          : plannedToday?.sabaqPage !== null && plannedToday?.sabaqPage !== undefined
+                          ? [plannedToday.sabaqPage]
+                          : [];
+                      if (sabaqPages.length > 0) {
+                        handleCompleteTask(todayIso, 'sabaq', sabaqPages, rating, 0);
                       }
                     }}
                   />
@@ -714,7 +737,9 @@ export default function App() {
                 {activeScreen === 'plan' && (
                   <PlanScreen
                     calendar={calendar}
-                    order={state.plan.order}
+                    order={activePlan.order}
+                    plan={activePlan}
+                    timeline={timeline ?? undefined}
                     todayIso={todayIso}
                     pageProgress={state.pageProgress}
                     dayLogs={state.dayLogs}
@@ -755,13 +780,12 @@ export default function App() {
                 {activeScreen === 'settings' && timeline && (
                   <SettingsScreen
                     state={state}
-                    plan={state.plan}
+                    plan={activePlan}
                     timeline={timeline}
                     onToggleDarkMode={handleToggleDarkMode}
                     onChangeAccentColor={handleChangeAccentColor}
                     onUpdateReminders={handleUpdateReminders}
                     onImportState={handleImportState}
-                    onResetAllData={handleResetAllData}
                   />
                 )}
               </motion.div>
@@ -782,15 +806,24 @@ export default function App() {
             <button
               key={item.id}
               type="button"
+              aria-current={active ? 'page' : undefined}
               onClick={() => {
                 setMobileMenuOpen(false);
                 setActiveScreen(item.id);
               }}
-              className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
-                active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
+              className={`flex flex-col items-center justify-center gap-0.5 text-[11px] ${
+                active
+                  ? 'font-bold text-[color-mix(in_srgb,var(--accent)_65%,var(--text-primary))]'
+                  : 'font-medium text-[var(--text-secondary)]'
               }`}
             >
-              <Icon className="h-5 w-5" />
+              <span
+                className={`inline-flex items-center justify-center rounded-xl px-3 py-1 transition-colors ${
+                  active ? 'bg-[var(--accent-soft)]' : ''
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
               <span className="truncate">{item.label}</span>
             </button>
           );
@@ -800,11 +833,19 @@ export default function App() {
           type="button"
           onClick={() => setMobileMenuOpen((v) => !v)}
           aria-expanded={mobileMenuOpen}
-          className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
-            mobileMenuOpen ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
+          className={`flex flex-col items-center justify-center gap-0.5 text-[11px] ${
+            mobileMenuOpen
+              ? 'font-bold text-[color-mix(in_srgb,var(--accent)_65%,var(--text-primary))]'
+              : 'font-medium text-[var(--text-secondary)]'
           }`}
         >
-          <Menu className="h-5 w-5" />
+          <span
+            className={`inline-flex items-center justify-center rounded-xl px-3 py-1 transition-colors ${
+              mobileMenuOpen ? 'bg-[var(--accent-soft)]' : ''
+            }`}
+          >
+            <Menu className="h-5 w-5" />
+          </span>
           <span>المزيد</span>
         </button>
       </nav>

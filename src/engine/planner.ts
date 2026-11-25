@@ -3,12 +3,15 @@ import type {
   JuzScheduleSummary,
   MemorizationOrder,
   PageProgress,
+  PlanDirection,
   PlannedDay,
+  PlanTrackId,
   TaskKind,
   TaskRating,
 } from '../types/plan';
 import {
   buildMemorizationSequence,
+  buildSequenceFromConfig,
   getJuzForPage,
   getManzilPagesPerDay,
   getPagesInJuz,
@@ -16,6 +19,7 @@ import {
   TOTAL_JUZ,
   TOTAL_MUSHAF_PAGES,
 } from './mushaf';
+import { computeCyclePlanDurationDays, getPagesAssignedOnDay } from './plans';
 
 export const ARABIC_WEEKDAYS = [
   'الأحد',
@@ -252,10 +256,17 @@ export function getTodayPageFocusStatus(
     };
   }
 
-  if (plannedDay.sabaqPage !== null) {
+  const todaySabaqPages =
+    plannedDay.sabaqPages && plannedDay.sabaqPages.length > 0
+      ? plannedDay.sabaqPages
+      : plannedDay.sabaqPage !== null
+      ? [plannedDay.sabaqPage]
+      : [];
+
+  if (todaySabaqPages.length > 0) {
     const sabaqDone =
       Boolean(dayLog?.tasks.sabaq?.completed) ||
-      ((pageProgress[plannedDay.sabaqPage]?.status ?? 'not_started') !== 'not_started');
+      todaySabaqPages.every((p) => (pageProgress[p]?.status ?? 'not_started') !== 'not_started');
     const sabqiDone = Boolean(dayLog?.tasks.sabqi?.completed);
     const manzilDone = Boolean(dayLog?.tasks.manzil?.completed);
 
@@ -273,9 +284,9 @@ export function getTodayPageFocusStatus(
     const areAllTasksDone = completedTaskCount === totalTaskCount;
     return {
       mode: 'sabaq',
-      primaryPage: plannedDay.sabaqPage,
-      secondaryPages: [],
-      juz: plannedDay.sabaqJuz,
+      primaryPage: todaySabaqPages[0],
+      secondaryPages: todaySabaqPages.length > 1 ? todaySabaqPages : [],
+      juz: plannedDay.sabaqJuz ?? getJuzForPage(todaySabaqPages[0]),
       isCompleted: sabaqDone,
       areAllTasksDone,
       completedTaskCount,
@@ -283,13 +294,14 @@ export function getTodayPageFocusStatus(
     };
   }
 
-  // Consolidation phase (Sun-Thu after 604 pages memorized)
+  // Consolidation or rest/0-page cycle day
   const activeKinds: TaskKind[] = [];
   if (plannedDay.sabqiPages.length > 0) activeKinds.push('sabqi');
   if (plannedDay.manzilPages.length > 0) activeKinds.push('manzil');
   const completedTaskCount = activeKinds.filter((k) => Boolean(dayLog?.tasks[k]?.completed)).length;
   const totalTaskCount = activeKinds.length;
-  const areAllTasksDone = totalTaskCount > 0 && completedTaskCount === totalTaskCount;
+  const areAllTasksDone =
+    totalTaskCount > 0 ? completedTaskCount === totalTaskCount : Boolean(dayLog?.manualConfirmed);
 
   return {
     mode: 'consolidation',
@@ -321,16 +333,85 @@ function takeRotatingPages(
   return { picked, nextCursor: idx };
 }
 
+export interface GenerateCalendarOptions {
+  trackId?: PlanTrackId;
+  startPage?: number;
+  direction?: PlanDirection;
+}
+
 /**
- * Generates the complete, fixed 36-month calendar from startDate.
+ * Generates the complete fixed plan calendar from startDate.
+ * Keeps the legacy 3-year plan logic completely unchanged.
  */
 export function generatePlanCalendar(
   startDate: string,
-  order: MemorizationOrder
+  order: MemorizationOrder,
+  options?: GenerateCalendarOptions
 ): PlannedDay[] {
+  const trackId: PlanTrackId = options?.trackId ?? 'three_years';
+  const sequence =
+    options?.startPage !== undefined && options?.direction !== undefined
+      ? buildSequenceFromConfig(options.startPage, options.direction)
+      : buildMemorizationSequence(order);
+
+  // Integer-cycle plans (1y, 2y, juz/month, 5y)
+  if (trackId !== 'three_years') {
+    const totalDays = computeCyclePlanDurationDays(trackId, TOTAL_MUSHAF_PAGES);
+    const days: PlannedDay[] = [];
+    let seqIdx = 0;
+    let manzilCursor = 0;
+
+    for (let dayIndex = 0; dayIndex < totalDays; dayIndex++) {
+      const current = addDays(startDate, dayIndex);
+      const dow = getDayOfWeek(current);
+      const monthNumber = Math.floor(dayIndex / 30) + 1;
+      const pagesToday = getPagesAssignedOnDay(trackId, dayIndex);
+      const sabaqPages =
+        pagesToday > 0 ? sequence.slice(seqIdx, Math.min(TOTAL_MUSHAF_PAGES, seqIdx + pagesToday)) : [];
+
+      const sabqiPages = sequence.slice(Math.max(0, seqIdx - 7), seqIdx);
+      const olderPool = sequence.slice(0, Math.max(0, seqIdx - 7));
+      const isWeeklyRestDay =
+        (trackId === 'intensive_1y' || trackId === 'two_years') && dayIndex % 7 === 6;
+
+      let manzilPages: number[] = [];
+      if (!isWeeklyRestDay && olderPool.length > 0) {
+        const { picked, nextCursor } = takeRotatingPages(
+          olderPool,
+          getManzilPagesPerDay(Math.min(30, monthNumber)),
+          manzilCursor
+        );
+        manzilPages = picked;
+        manzilCursor = nextCursor;
+      }
+
+      seqIdx += sabaqPages.length;
+
+      days.push({
+        date: current,
+        dayIndex,
+        monthNumber,
+        dayOfWeek: dow,
+        phase: 'memorization',
+        sabaqPage: sabaqPages[0] ?? null,
+        sabaqPages,
+        sabaqJuz: sabaqPages[0] ? getJuzForPage(sabaqPages[0]) : null,
+        sabqiPages: isWeeklyRestDay ? [] : sabqiPages,
+        manzilPages,
+        weeklyReviewPages: [],
+        isFriday: false,
+        isSaturday: isWeeklyRestDay,
+        fullReviewJuz: null,
+        fullReviewPages: [],
+      });
+    }
+
+    return days;
+  }
+
+  // Legacy 3-year plan (strictly preserved)
   const phase1End = addMonths(startDate, 30);
   const planEnd = addMonths(startDate, 36);
-  const sequence = buildMemorizationSequence(order);
 
   const days: PlannedDay[] = [];
   let current = startDate;
@@ -376,6 +457,7 @@ export function generatePlanCalendar(
             dayOfWeek: dow,
             phase: 'memorization',
             sabaqPage,
+            sabaqPages: [sabaqPage],
             sabaqJuz: getJuzForPage(sabaqPage),
             sabqiPages,
             manzilPages,
@@ -403,6 +485,7 @@ export function generatePlanCalendar(
             dayOfWeek: dow,
             phase: 'consolidation',
             sabaqPage: null,
+            sabaqPages: [],
             sabaqJuz: null,
             sabqiPages,
             manzilPages,
@@ -431,6 +514,7 @@ export function generatePlanCalendar(
           dayOfWeek: dow,
           phase: seqIdx < TOTAL_MUSHAF_PAGES ? 'memorization' : 'consolidation',
           sabaqPage: null,
+          sabaqPages: [],
           sabaqJuz: null,
           sabqiPages,
           manzilPages,
@@ -449,6 +533,7 @@ export function generatePlanCalendar(
           dayOfWeek: dow,
           phase: seqIdx < TOTAL_MUSHAF_PAGES ? 'memorization' : 'consolidation',
           sabaqPage: null,
+          sabaqPages: [],
           sabaqJuz: null,
           sabqiPages: [],
           manzilPages: [],
@@ -472,6 +557,7 @@ export function generatePlanCalendar(
         dayOfWeek: dow,
         phase: 'full_review',
         sabaqPage: null,
+        sabaqPages: [],
         sabaqJuz: null,
         sabqiPages: [],
         manzilPages: [],
@@ -500,8 +586,15 @@ export function getJuzScheduleSummaries(
   }
 
   for (const day of calendar) {
-    if (day.sabaqPage !== null && day.sabaqJuz !== null) {
-      const entry = map.get(day.sabaqJuz)!;
+    const pages =
+      day.sabaqPages && day.sabaqPages.length > 0
+        ? day.sabaqPages
+        : day.sabaqPage !== null
+        ? [day.sabaqPage]
+        : [];
+    for (const p of pages) {
+      const juz = getJuzForPage(p);
+      const entry = map.get(juz)!;
       if (!entry.startDate) entry.startDate = day.date;
       entry.endDate = day.date;
     }
@@ -542,12 +635,18 @@ export function getMissedPages(
   const missed: MissedPageInfo[] = [];
   for (const day of calendar) {
     if (day.date >= referenceDate) break;
-    if (day.sabaqPage !== null && day.sabaqJuz !== null) {
-      const prog = pageProgress[day.sabaqPage];
+    const pages =
+      day.sabaqPages && day.sabaqPages.length > 0
+        ? day.sabaqPages
+        : day.sabaqPage !== null
+        ? [day.sabaqPage]
+        : [];
+    for (const p of pages) {
+      const prog = pageProgress[p];
       if (!prog || prog.status === 'not_started') {
         missed.push({
-          page: day.sabaqPage,
-          juz: day.sabaqJuz,
+          page: p,
+          juz: getJuzForPage(p),
           scheduledDate: day.date,
         });
       }

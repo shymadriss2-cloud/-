@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { formatPageRangeAr, JUZ_BEGINNINGS, JUZ_NAMES_AR } from '../engine/mushaf';
 import {
   ARABIC_WEEKDAYS,
@@ -8,13 +8,17 @@ import {
   getJuzCompletionStats,
   getJuzScheduleSummaries,
   hasDayActivity,
+  type PlanTimelineSummary,
 } from '../engine/planner';
-import type { DayLog, MemorizationOrder, PageProgress, PlannedDay, TaskRating } from '../types/plan';
+import { PLAN_TRACKS } from '../engine/plans';
+import type { DayLog, MemorizationOrder, PageProgress, PlanConfig, PlannedDay, TaskRating } from '../types/plan';
 import { ProgressRing } from './ProgressRing';
 
 interface PlanScreenProps {
   calendar: PlannedDay[];
   order: MemorizationOrder;
+  plan?: PlanConfig;
+  timeline?: PlanTimelineSummary;
   todayIso: string;
   pageProgress: Record<number, PageProgress>;
   dayLogs: Record<string, DayLog>;
@@ -31,12 +35,17 @@ type PlanTab = 'weekly' | 'monthly' | 'juz';
 export function PlanScreen({
   calendar,
   order,
+  plan,
+  timeline,
   todayIso,
   pageProgress,
   dayLogs,
   onConfirmPastWork,
 }: PlanScreenProps) {
   const [activeTab, setActiveTab] = useState<PlanTab>('weekly');
+  const activeTrack = PLAN_TRACKS[plan?.trackId ?? 'three_years'];
+  const maxMonths = calendar[calendar.length - 1]?.monthNumber ?? 36;
+  const remainingWeeks = timeline ? Math.ceil(timeline.daysRemainingToMemorization / 7) : 0;
 
   const todayIndex = useMemo(() => {
     const idx = calendar.findIndex((d) => d.date === todayIso);
@@ -87,7 +96,7 @@ export function PlanScreen({
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs text-[var(--text-muted)]">
-              خطة ثابتة لمدة ٣٦ شهراً · المسار {order === 'A' ? 'أ (من الفاتحة)' : 'ب (من جزء عمّ)'}
+              {activeTrack.title} · خطة ثابتة ومقفلة
             </p>
             <h1 className="font-display mt-1 text-2xl font-bold text-[var(--text-primary)] md:text-3xl">
               جدول الخطة الكامل
@@ -99,7 +108,7 @@ export function PlanScreen({
               {(
                 [
                   { id: 'weekly', label: 'الأسبوعي' },
-                  { id: 'monthly', label: 'الشهري (٣٦ شهراً)' },
+                  { id: 'monthly', label: `الشهري (${maxMonths} شهراً)` },
                   { id: 'juz', label: 'جدول الأجزاء (٣٠)' },
                 ] as const
               ).map((tab) => (
@@ -129,6 +138,35 @@ export function PlanScreen({
             )}
           </div>
         </div>
+
+        {timeline && (
+          <div
+            data-testid="plan-locked-summary"
+            className="mt-4 grid gap-3 border-t border-[var(--border-hairline)] pt-4 sm:grid-cols-3"
+          >
+            <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 py-2.5">
+              <p className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                <Lock className="h-3 w-3 text-[var(--accent)]" />
+                <span>المعدل المعتمد</span>
+              </p>
+              <p className="mt-1 text-xs font-semibold text-[var(--text-primary)]">
+                {activeTrack.rateLabel}
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 py-2.5">
+              <p className="text-[11px] text-[var(--text-muted)]">الأسابيع المتبقية لختم الحفظ</p>
+              <p className="mt-1 text-sm font-bold tabular-nums text-[var(--accent)]">
+                {remainingWeeks} أسبوعاً ({timeline.daysRemainingToMemorization} يوماً)
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 py-2.5">
+              <p className="text-[11px] text-[var(--text-muted)]">تاريخ الختم المتوقع</p>
+              <p className="mt-1 text-sm font-bold tabular-nums text-[var(--text-primary)]">
+                {formatShortArabicDate(timeline.memorizationEndDate)}
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {activeTab === 'weekly' && (
@@ -221,7 +259,9 @@ export function PlanScreen({
                       <>
                         <p className="font-semibold text-[var(--accent)]">
                           السبق:{' '}
-                          {day.sabaqPage !== null
+                          {day.sabaqPages && day.sabaqPages.length > 1
+                            ? `${formatPageRangeAr(day.sabaqPages)} (الجزء ${day.sabaqJuz})`
+                            : day.sabaqPage !== null
                             ? `صفحة ${day.sabaqPage} (الجزء ${day.sabaqJuz})`
                             : 'تثبيت عام'}
                         </p>
@@ -260,12 +300,17 @@ export function PlanScreen({
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  aria-label="اختر الشهر من ٣٦ شهراً"
+                  aria-label={`اختر الشهر من ${maxMonths} شهراً`}
                   className="h-10 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 text-sm text-[var(--text-primary)]"
                 >
-                  {Array.from({ length: 36 }, (_, i) => i + 1).map((m) => (
+                  {Array.from({ length: maxMonths }, (_, i) => i + 1).map((m) => (
                     <option key={m} value={m}>
-                      الشهر {m} {m <= 30 ? '(الحفظ)' : '(المراجعة الشاملة)'}
+                      الشهر {m}{' '}
+                      {activeTrack.isLegacyThreeYear
+                        ? m <= 30
+                          ? '(الحفظ)'
+                          : '(المراجعة الشاملة)'
+                        : '(الحفظ)'}
                     </option>
                   ))}
                 </select>
@@ -273,8 +318,8 @@ export function PlanScreen({
 
               <button
                 type="button"
-                onClick={() => setSelectedMonth((m) => Math.min(36, m + 1))}
-                disabled={selectedMonth >= 36}
+                onClick={() => setSelectedMonth((m) => Math.min(maxMonths, m + 1))}
+                disabled={selectedMonth >= maxMonths}
                 aria-label="الشهر التالي"
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-hairline)] text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] disabled:opacity-40"
               >
@@ -283,9 +328,9 @@ export function PlanScreen({
             </div>
 
             <span className="text-xs text-[var(--text-muted)]">
-              {selectedMonth <= 30
-                ? 'نظام السبق والسبقي والمنزل'
-                : 'نظام جزء كامل يومياً'}
+              {activeTrack.isLegacyThreeYear && selectedMonth > 30
+                ? 'نظام جزء كامل يومياً'
+                : 'نظام السبق والسبقي والمنزل'}
             </span>
           </div>
 
@@ -347,6 +392,8 @@ export function PlanScreen({
                           ? 'استدراك'
                           : day.isFriday
                           ? 'تسميع'
+                          : day.sabaqPages && day.sabaqPages.length > 1
+                          ? `ص ${day.sabaqPages[0]}–${day.sabaqPages[day.sabaqPages.length - 1]}`
                           : day.sabaqPage !== null
                           ? `ص ${day.sabaqPage}`
                           : 'تثبيت'}
@@ -401,6 +448,8 @@ export function PlanScreen({
                         <p className="mt-0.5 font-medium text-[var(--text-primary)]">
                           {inspectedDay.isFriday
                             ? formatPageRangeAr(inspectedDay.weeklyReviewPages)
+                            : inspectedDay.sabaqPages && inspectedDay.sabaqPages.length > 1
+                            ? `${formatPageRangeAr(inspectedDay.sabaqPages)} · الجزء ${inspectedDay.sabaqJuz}`
                             : inspectedDay.sabaqPage !== null
                             ? `صفحة ${inspectedDay.sabaqPage} · الجزء ${inspectedDay.sabaqJuz}`
                             : 'تثبيت ومراجعة عامة'}

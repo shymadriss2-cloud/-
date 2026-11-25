@@ -1,5 +1,16 @@
 export type MemorizationOrder = 'A' | 'B';
 
+export type PlanTrackId =
+  | 'intensive_1y'
+  | 'two_years'
+  | 'three_years'
+  | 'juz_per_month'
+  | 'five_years';
+
+export type PlanDirection = 'forward' | 'backward';
+
+export type PlanStartMode = 'from_start' | 'from_nas' | 'juz_amma_first' | 'custom';
+
 export type TaskKind = 'sabaq' | 'sabqi' | 'manzil' | 'friday_review' | 'full_review';
 
 export type TaskRating = 'perfect' | 'hesitated' | 'mistakes';
@@ -42,6 +53,10 @@ export interface PlanConfig {
   order: MemorizationOrder;
   locked: boolean;
   createdAt: string;
+  trackId?: PlanTrackId;
+  startMode?: PlanStartMode;
+  startPage?: number; // 1..604
+  direction?: PlanDirection;
 }
 
 export interface TaskTimePreferences {
@@ -113,10 +128,11 @@ export interface AppState {
 export interface PlannedDay {
   date: string;
   dayIndex: number; // 0-based from startDate
-  monthNumber: number; // 1..36
+  monthNumber: number; // 1..36 (or higher for 5y plan)
   dayOfWeek: number; // 0 (Sun) .. 6 (Sat)
   phase: 'memorization' | 'consolidation' | 'full_review';
   sabaqPage: number | null;
+  sabaqPages?: number[];
   sabaqJuz: number | null;
   sabqiPages: number[];
   manzilPages: number[];

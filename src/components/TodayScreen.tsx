@@ -366,7 +366,9 @@ export function TodayScreen({
 
   const handleQuickConfirmDay = (day: PlannedDay, rating: TaskRating = 'perfect') => {
     const pages =
-      day.sabaqPage !== null
+      day.sabaqPages && day.sabaqPages.length > 0
+        ? day.sabaqPages
+        : day.sabaqPage !== null
         ? [day.sabaqPage]
         : day.weeklyReviewPages.length > 0
         ? day.weeklyReviewPages
@@ -1029,26 +1031,38 @@ export function TodayScreen({
               </div>
             </section>
           ) : (
-            <DailyTaskCard
-              kind="sabaq"
-              title="١. السبق (الحفظ الجديد)"
-              subtitle="صفحة واحدة جديدة بإتقان وربط"
-              suggestedLabel="المقترح: بعد الفجر"
-              timeValue={taskTimes.sabaq}
-              onTimeChange={(val) => onUpdateTaskTime('sabaq', val)}
-              pages={plannedDay.sabaqPage !== null ? [plannedDay.sabaqPage] : []}
-              record={dayLog?.tasks.sabaq}
-              emptyText="أتممت حفظ جميع صفحات المصحف — اليوم للتثبيت والمراجعة"
-              onSubmitRating={(rating, secs) =>
-                onCompleteTask(
-                  todayIso,
-                  'sabaq',
-                  plannedDay.sabaqPage !== null ? [plannedDay.sabaqPage] : [],
-                  rating,
-                  secs
-                )
-              }
-            />
+            (() => {
+              const sabaqPagesToday =
+                plannedDay.sabaqPages && plannedDay.sabaqPages.length > 0
+                  ? plannedDay.sabaqPages
+                  : plannedDay.sabaqPage !== null
+                  ? [plannedDay.sabaqPage]
+                  : [];
+              return (
+                <DailyTaskCard
+                  kind="sabaq"
+                  title="١. السبق (الحفظ الجديد)"
+                  subtitle={
+                    sabaqPagesToday.length > 1
+                      ? `${sabaqPagesToday.length} صفحات جديدة بإتقان وربط`
+                      : 'صفحة واحدة جديدة بإتقان وربط'
+                  }
+                  suggestedLabel="المقترح: بعد الفجر"
+                  timeValue={taskTimes.sabaq}
+                  onTimeChange={(val) => onUpdateTaskTime('sabaq', val)}
+                  pages={sabaqPagesToday}
+                  record={dayLog?.tasks.sabaq}
+                  emptyText={
+                    plannedDay.phase === 'memorization'
+                      ? 'لا توجد صفحة حفظ جديدة اليوم وفق وتيرة خطتك — ركّز على المراجعة'
+                      : 'أتممت حفظ جميع صفحات المصحف — اليوم للتثبيت والمراجعة'
+                  }
+                  onSubmitRating={(rating, secs) =>
+                    onCompleteTask(todayIso, 'sabaq', sabaqPagesToday, rating, secs)
+                  }
+                />
+              );
+            })()
           )}
 
           <DailyTaskCard

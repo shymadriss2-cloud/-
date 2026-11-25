@@ -1,7 +1,8 @@
-import type { JuzRange, MemorizationOrder } from '../types/plan';
+import { PLAN_CONFIG } from '../config/planConfig';
+import type { JuzRange, MemorizationOrder, PlanDirection } from '../types/plan';
 
-export const TOTAL_MUSHAF_PAGES = 604;
-export const TOTAL_JUZ = 30;
+export const TOTAL_MUSHAF_PAGES = PLAN_CONFIG.TOTAL_MUSHAF_PAGES;
+export const TOTAL_JUZ = PLAN_CONFIG.TOTAL_JUZ;
 
 export const JUZ_RANGES: JuzRange[] = Array.from({ length: TOTAL_JUZ }, (_, idx) => {
   const juz = idx + 1;
@@ -9,7 +10,7 @@ export const JUZ_RANGES: JuzRange[] = Array.from({ length: TOTAL_JUZ }, (_, idx)
     return { juz: 1, startPage: 1, endPage: 21, pageCount: 21 };
   }
   if (juz === 30) {
-    return { juz: 30, startPage: 582, endPage: 604, pageCount: 23 };
+    return { juz: 30, startPage: 582, endPage: TOTAL_MUSHAF_PAGES, pageCount: TOTAL_MUSHAF_PAGES - 581 };
   }
   const startPage = 22 + (juz - 2) * 20;
   const endPage = startPage + 19;
@@ -124,6 +125,27 @@ export function buildMemorizationSequence(order: MemorizationOrder): number[] {
   const pages: number[] = [];
   for (let juz = TOTAL_JUZ; juz >= 1; juz--) {
     pages.push(...getPagesInJuz(juz));
+  }
+  return pages;
+}
+
+/**
+ * Builds an exact 604-page sequence without duplicates starting from startPage in the given direction,
+ * wrapping around at Mushaf boundaries so the full Mushaf is memorized once.
+ */
+export function buildSequenceFromConfig(
+  startPage: number,
+  direction: PlanDirection,
+  totalPages: number = TOTAL_MUSHAF_PAGES
+): number[] {
+  const clampedStart = Math.min(totalPages, Math.max(1, Math.trunc(startPage)));
+  const pages: number[] = [];
+  if (direction === 'forward') {
+    for (let p = clampedStart; p <= totalPages; p++) pages.push(p);
+    for (let p = 1; p < clampedStart; p++) pages.push(p);
+  } else {
+    for (let p = clampedStart; p >= 1; p--) pages.push(p);
+    for (let p = totalPages; p > clampedStart; p--) pages.push(p);
   }
   return pages;
 }

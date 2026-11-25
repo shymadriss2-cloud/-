@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { Bell, CalendarCheck2, Check, Clock, Download, Lock, Moon, Palette, RotateCcw, Sun, Upload } from 'lucide-react';
+import { Bell, CalendarCheck2, Check, Clock, Download, Lock, Moon, Palette, Sun, Upload } from 'lucide-react';
 import { motion } from 'motion/react';
 import { COLOR_PALETTES } from '../data/palettes';
 import { formatShortArabicDate, type PlanTimelineSummary } from '../engine/planner';
+import { PLAN_TRACKS } from '../engine/plans';
 import type { AppColorPalette, AppState, PlanConfig, ReminderSettings } from '../types/plan';
 import { validateImportedState } from '../utils/storage';
 import { HeroCornerArabesque, ThemeEmblem } from './IslamicOrnament';
@@ -16,7 +17,6 @@ interface SettingsScreenProps {
   onChangeAccentColor: (palette: AppColorPalette) => void;
   onUpdateReminders: (reminders: ReminderSettings) => void;
   onImportState: (next: AppState) => void;
-  onResetAllData: () => void;
 }
 
 export function SettingsScreen({
@@ -27,11 +27,10 @@ export function SettingsScreen({
   onChangeAccentColor,
   onUpdateReminders,
   onImportState,
-  onResetAllData,
 }: SettingsScreenProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
-  const [confirmingReset, setConfirmingReset] = useState<boolean>(false);
+  const activeTrack = PLAN_TRACKS[plan.trackId ?? 'three_years'];
 
   const notificationSupported = typeof window !== 'undefined' && 'Notification' in window;
   const [permState, setPermState] = useState<string>(() =>
@@ -181,16 +180,24 @@ export function SettingsScreen({
                 بيانات الخطة الثابتة ومواعيد الإتمام
               </h2>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                المسار المعتمد:{' '}
+                الخطة المختارة:{' '}
                 <span className="font-medium text-[var(--text-primary)]">
-                  {plan.order === 'A' ? 'أ (من الفاتحة صعوداً)' : 'ب (من جزء عمّ نزولاً)'}
+                  {activeTrack.title}
                 </span>
+                {' · '}
+                {plan.direction === 'backward'
+                  ? `من صفحة ${plan.startPage ?? 604} تنازلياً`
+                  : plan.startPage
+                  ? `من صفحة ${plan.startPage} تصاعدياً`
+                  : plan.order === 'A'
+                  ? 'أ (من الفاتحة صعوداً)'
+                  : 'ب (من جزء عمّ نزولاً)'}
               </p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent-soft)] px-3 py-1 text-xs font-medium text-[var(--accent)]">
             <CalendarCheck2 className="h-3.5 w-3.5" />
-            <span>خطة ٣٦ شهراً ثابتة</span>
+            <span>خطة ثابتة ومقفلة</span>
           </span>
         </div>
 
@@ -532,42 +539,6 @@ export function SettingsScreen({
             className="hidden"
             aria-label="اختيار ملف النسخة الاحتياطية"
           />
-        </div>
-
-        <div className="mt-6 border-t border-[var(--border-hairline)] pt-5">
-          {!confirmingReset ? (
-            <button
-              type="button"
-              onClick={() => setConfirmingReset(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--danger)]/35 px-4 text-xs font-medium text-[var(--danger)] hover:bg-[var(--danger-soft)]"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>مسح جميع البيانات والبدء من جديد</span>
-            </button>
-          ) : (
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-xs font-medium text-[var(--danger)]">
-                هل أنت متأكد من مسح السجل بالكامل؟ (يُفضّل تصدير نسخة احتياطية أولاً)
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmingReset(false);
-                  onResetAllData();
-                }}
-                className="h-9 rounded-lg bg-[var(--danger)] px-3.5 text-xs font-medium text-white"
-              >
-                نعم، امسح الكل
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmingReset(false)}
-                className="h-9 rounded-lg border border-[var(--border-hairline)] px-3.5 text-xs font-medium text-[var(--text-primary)]"
-              >
-                إلغاء
-              </button>
-            </div>
-          )}
         </div>
       </section>
     </div>
