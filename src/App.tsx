@@ -544,7 +544,7 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <ThemePaletteProvider value={state.accentColor}>
-        <div className="app-shell-wrap min-h-screen w-full max-w-[100vw] overflow-x-clip pb-24 text-[var(--text-primary)] lg:pb-0">
+        <div className="app-shell-wrap min-h-screen w-full max-w-[100vw] overflow-x-clip overscroll-y-none text-[var(--text-primary)]">
         <div className="mx-auto flex min-h-screen w-full max-w-[1440px]">
           {/* Desktop Right RTL Sidebar */}
           <aside className="card-elevated relative z-10 hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[linear-gradient(180deg,var(--bg-sidebar)_0%,color-mix(in_srgb,var(--accent-soft)_42%,var(--bg-sidebar))_100%)] lg:flex lg:flex-col lg:justify-between">
@@ -718,7 +718,7 @@ export default function App() {
             </motion.button>
           </header>
 
-          <main className="mx-auto w-full min-w-0 max-w-5xl flex-1 p-4 pb-24 md:p-6 md:pb-24 lg:p-8 lg:pb-8">
+          <main className="mx-auto w-full min-w-0 max-w-5xl flex-1 overscroll-y-none p-4 pb-[84px] md:p-6 md:pb-[84px] lg:p-8 lg:pb-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeScreen}

@@ -162,7 +162,7 @@ function DailyTaskCard({
       }`}
     >
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+        <div className="w-full min-w-0 flex-1 break-words">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
             <span>{suggestedLabel}</span>
             {timeValue !== undefined && onTimeChange ? (
@@ -463,7 +463,7 @@ export function TodayScreen({
     : `مرحلة الحفظ (الأشهر 1–${totalMonths})`;
 
   return (
-    <div className="w-full min-w-0 space-y-6 pb-4">
+    <div className="w-full min-w-0 space-y-6">
       {/* Top Overview Strip */}
       <section className="card-hero w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5 md:p-6">
         <HeroCornerArabesque className="absolute -left-6 -top-6 h-48 w-48 text-[var(--accent)] opacity-[0.22]" />
@@ -474,7 +474,7 @@ export function TodayScreen({
               variant="hero"
               testId="today-hero-page-badge"
             />
-            <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+            <div className="w-full min-w-0 flex-1 break-words">
               <p className="text-xs text-[var(--text-muted)]">
                 {formatArabicDate(todayIso)}
                 {plannedDay ? ` · الشهر ${plannedDay.monthNumber} من ${totalMonths}` : ''}
@@ -574,7 +574,7 @@ export function TodayScreen({
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
               <CalendarClock className="h-5 w-5" />
             </div>
-            <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+            <div className="w-full min-w-0 flex-1 break-words">
               <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)]">
                 <ThemeEmblem className="h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
                 <span>الأيام المتبقية لإنهاء الحفظ</span>
@@ -632,7 +632,7 @@ export function TodayScreen({
         >
           <div className="flex min-w-0 items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--warn)]" />
-            <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+            <div className="min-w-0 flex-1 break-words">
               <p className="font-semibold text-[var(--text-primary)]">
                 تنبيه لطيف: لديك {missedPages.length} صفحات متأخرة عن الخطة
               </p>
@@ -648,16 +648,16 @@ export function TodayScreen({
       {/* After-Midnight / Manual & Numeric Retroactive Work Confirmation */}
       {todayIso >= startDate && (
         <section className="card-elevated w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-start gap-3">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full min-w-0 flex-1 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
                 <History className="h-5 w-5" />
               </div>
-              <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
-                <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              <div className="min-w-0 flex-1 break-words">
+                <h2 className="text-base font-semibold leading-snug text-[var(--text-primary)]">
                   تأكيد الإنجاز بعد منتصف الليل / الإدخال اليدوي والرقمي
                 </h2>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
                   نسيت تأكيد إنهاء مهامك قبل منتصف الليل؟ أكّد العمل الآن برقم الصفحة أو يدوياً ليُحتسب في سلسلة الاستمرار.
                 </p>
               </div>
@@ -667,7 +667,7 @@ export function TodayScreen({
               type="button"
               onClick={() => setShowRetroPanel((v) => !v)}
               aria-expanded={showRetroPanel}
-              className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)] sm:whitespace-nowrap"
+              className="inline-flex min-h-10 w-full max-w-full shrink-0 items-center justify-between gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)] sm:w-auto sm:justify-center sm:whitespace-nowrap"
             >
               <span>{showRetroPanel ? 'إخفاء اللوحة' : 'تأكيد يوم فائت / إدخال رقمي'}</span>
               <ChevronDown
@@ -706,13 +706,13 @@ export function TodayScreen({
                           return (
                             <div
                               key={d.date}
-                              className={`flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
+                              className={`flex min-w-0 flex-col gap-2.5 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
                                 isYesterday
                                   ? 'border-[var(--accent)]/40 bg-[var(--accent-soft)]/35'
                                   : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)]'
                               }`}
                             >
-                              <div className="min-w-0 flex-1 break-words">
+                              <div className="w-full min-w-0 flex-1 break-words">
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   {isYesterday && (
                                     <span className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-ink)]">
@@ -950,14 +950,14 @@ export function TodayScreen({
       ) : plannedDay.isSaturday ? (
         /* Saturday: Catch-up + Rest */
         <section className="w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 sm:p-6">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 break-words">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full min-w-0 flex-1 break-words">
               <p className="text-xs text-[var(--text-muted)]">يوم السبت · الاستدراك والراحة</p>
               <h2 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
                 استدراك الصفحات الفائتة
               </h2>
             </div>
-            <span className="text-xs font-medium tabular-nums text-[var(--text-secondary)]">
+            <span className="shrink-0 text-xs font-medium tabular-nums text-[var(--text-secondary)]">
               {missedPages.length === 0
                 ? 'لا توجد صفحات متأخرة'
                 : `${missedPages.length} صفحة للاستدراك`}
@@ -974,9 +974,9 @@ export function TodayScreen({
               {missedPages.map((m) => (
                 <li
                   key={m.page}
-                  className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  className="flex min-w-0 flex-col gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="min-w-0 flex-1 break-words">
+                  <div className="w-full min-w-0 flex-1 break-words">
                     <p className="text-sm font-medium text-[var(--text-primary)]">
                       صفحة {m.page} · الجزء {m.juz}
                     </p>
@@ -987,7 +987,7 @@ export function TodayScreen({
                   <button
                     type="button"
                     onClick={() => onCatchUpPage(todayIso, m.page)}
-                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-4 text-xs font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[var(--accent)] px-4 text-xs font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     <span>تم الاستدراك</span>
@@ -1002,10 +1002,10 @@ export function TodayScreen({
         <div className="w-full min-w-0 space-y-4">
           {plannedDay.isFriday ? (
             <section className="w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5">
-              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="w-full min-w-0 flex-1 break-words">
                   <p className="text-xs text-[var(--text-muted)]">يوم الجمعة · التثبيت الأسبوعي</p>
-                  <h2 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                  <h2 className="mt-1 text-lg font-semibold leading-snug text-[var(--text-primary)]">
                     مراجعة صفحات الأسبوع (5 صفحات) والتسميع
                   </h2>
                   <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -1024,7 +1024,7 @@ export function TodayScreen({
                         0
                       )
                     }
-                    className={`inline-flex h-10 max-w-full shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium ${
+                    className={`inline-flex h-10 w-full max-w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium sm:w-auto ${
                       dayLog?.tasks.friday_review?.completed
                         ? 'border border-[var(--accent)]/40 bg-[var(--accent-soft)] text-[var(--accent)]'
                         : 'bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]'
@@ -1170,7 +1170,7 @@ export function TodayScreen({
       {/* Extra Review Queue (Pages rated Mistakes) */}
       {extraReviewPages.length > 0 && (
         <section className="w-full min-w-0 rounded-2xl border border-[var(--danger)]/30 bg-[var(--bg-surface)] p-4 sm:p-5">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
               صفحات مضافة للمراجعة الإضافية ({extraReviewPages.length})
             </h2>
@@ -1206,7 +1206,7 @@ export function TodayScreen({
           className="card-suggestion flex w-full min-w-0 flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5"
         >
           <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--gold)] opacity-[0.24]" />
-          <div className="relative z-10 min-w-0 break-words [overflow-wrap:anywhere]">
+          <div className="relative z-10 min-w-0 break-words">
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
               <span className="inline-flex items-center gap-1.5 font-medium text-[var(--gold)]">
                 <ThemeEmblem className="h-4 w-4 shrink-0" />
@@ -1248,7 +1248,7 @@ export function TodayScreen({
           className="card-suggestion flex w-full min-w-0 flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5"
         >
           <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--accent)] opacity-[0.22]" />
-          <div className="relative z-10 min-w-0 break-words [overflow-wrap:anywhere]">
+          <div className="relative z-10 min-w-0 break-words">
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
               <span className="inline-flex items-center gap-1.5 font-medium text-[var(--accent)]">
                 <ThemeEmblem className="h-4 w-4 shrink-0" />
