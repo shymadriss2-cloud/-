@@ -213,7 +213,7 @@ export function TodayPageBadge({ focus, variant, testId, onClick }: TodayPageBad
       layout
       data-testid={testId ?? 'hero-today-page-badge'}
       data-completed={completed ? 'true' : 'false'}
-      className={`mihrab-tile-shape relative flex min-w-[170px] shrink-0 flex-col items-center justify-center overflow-hidden border-2 px-5 py-4 text-center transition-all duration-300 sm:min-w-[192px] ${
+      className={`mihrab-tile-shape relative flex w-full max-w-full min-w-0 shrink-0 flex-col items-center justify-center overflow-hidden border-2 px-5 py-4 text-center transition-all duration-300 sm:w-auto sm:min-w-[192px] ${
         completed
           ? 'btn-accent-glow border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]'
           : 'card-elevated border-[var(--gold)]/55 bg-[var(--bg-canvas)] text-[var(--text-primary)]'

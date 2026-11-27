@@ -544,8 +544,8 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <ThemePaletteProvider value={state.accentColor}>
-        <div className="app-shell-wrap min-h-screen text-[var(--text-primary)] pb-20 lg:pb-0">
-        <div className="mx-auto flex min-h-screen max-w-[1440px]">
+        <div className="app-shell-wrap min-h-screen w-full max-w-[100vw] overflow-x-clip pb-24 text-[var(--text-primary)] lg:pb-0">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1440px]">
           {/* Desktop Right RTL Sidebar */}
           <aside className="card-elevated relative z-10 hidden w-64 shrink-0 border-l border-[var(--border-hairline)] bg-[linear-gradient(180deg,var(--bg-sidebar)_0%,color-mix(in_srgb,var(--accent-soft)_42%,var(--bg-sidebar))_100%)] lg:flex lg:flex-col lg:justify-between">
             <div className="p-5">
@@ -672,8 +672,8 @@ export default function App() {
         {/* Main Viewport */}
         <div className="relative z-10 flex min-w-0 flex-1 flex-col">
           {/* Compact Top Header (<= 56px on mobile) */}
-          <header className="card-elevated sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-t-2 border-t-[var(--accent)] border-b border-b-[var(--border-hairline)] bg-[var(--bg-header)] px-4 backdrop-blur-md lg:h-16 lg:px-8">
-            <div className="flex items-center gap-2 lg:hidden">
+          <header className="card-elevated sticky top-0 z-30 flex h-14 w-full min-w-0 items-center justify-between gap-2 border-t-2 border-t-[var(--accent)] border-b border-b-[var(--border-hairline)] bg-[var(--bg-header)] px-4 backdrop-blur-md lg:h-16 lg:px-8">
+            <div className="flex min-w-0 items-center gap-2 lg:hidden">
               <AppLogo variant="badge" className="h-7 w-7 shrink-0 text-[var(--accent)]" />
               <span className="font-display text-lg font-bold whitespace-nowrap">وِرْد مُدَّكِر</span>
               {todayFocus.primaryPage !== null && (
@@ -718,7 +718,7 @@ export default function App() {
             </motion.button>
           </header>
 
-          <main className="mx-auto w-full max-w-5xl flex-1 p-4 md:p-6 lg:p-8">
+          <main className="mx-auto w-full min-w-0 max-w-5xl flex-1 p-4 pb-24 md:p-6 md:pb-24 lg:p-8 lg:pb-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeScreen}
@@ -726,6 +726,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full min-w-0"
               >
                 {activeScreen === 'today' && timeline && (
                   <TodayScreen
@@ -856,7 +857,7 @@ export default function App() {
       {/* Mobile Bottom Tab Bar (64px) */}
       <nav
         aria-label="التنقل السفلي"
-        className="fixed right-0 bottom-0 left-0 z-30 grid h-16 grid-cols-5 border-t border-[var(--border-hairline)] bg-[var(--bg-header)] backdrop-blur-md lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid h-16 w-full max-w-[100vw] grid-cols-5 border-t border-[var(--border-hairline)] bg-[var(--bg-header)] backdrop-blur-md lg:hidden"
       >
         {mobilePrimaryTabs.map((item) => {
           const Icon = item.icon;
@@ -916,7 +917,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 flex items-end bg-black/40 lg:hidden"
+            className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
           >
             <motion.div
@@ -1037,7 +1038,7 @@ export default function App() {
       {/* Two-step Delete All Data Confirmation Modals */}
       {deleteStep === 'confirm1' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-step1-title"
@@ -1078,7 +1079,7 @@ export default function App() {
 
       {deleteStep === 'confirm2' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-step2-title"

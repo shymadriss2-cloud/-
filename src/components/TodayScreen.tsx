@@ -155,25 +155,25 @@ function DailyTaskCard({
   return (
     <motion.section
       layout
-      className={`card-interactive rounded-2xl border p-5 ${
+      className={`card-interactive w-full min-w-0 rounded-2xl border p-4 sm:p-5 ${
         isCompleted
           ? 'border-[var(--accent)]/45 bg-[var(--accent-soft)]/35'
           : 'border-[var(--border-hairline)] bg-[var(--bg-surface)]'
       }`}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
             <span>{suggestedLabel}</span>
             {timeValue !== undefined && onTimeChange ? (
-              <label className="inline-flex items-center gap-1.5">
+              <label className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                 <span className="sr-only">وقت {title}</span>
                 <input
                   type="time"
                   value={timeValue}
                   onChange={(e) => onTimeChange(e.target.value)}
                   aria-label={`تعديل وقت ${title}`}
-                  className="rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-2 py-0.5 text-xs tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                  className="min-w-0 max-w-full rounded-lg border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-2 py-0.5 text-xs tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                 />
               </label>
             ) : null}
@@ -200,8 +200,8 @@ function DailyTaskCard({
         </div>
 
         {hasPages && (
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:flex-col sm:items-end">
-            <div className="flex items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-2.5 py-1.5">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center justify-between gap-2 sm:flex-col sm:items-end">
+            <div className="flex min-w-0 max-w-full items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-2.5 py-1.5">
               <Clock className="h-3.5 w-3.5 text-[var(--text-muted)]" />
               <span className="font-mono-num text-sm font-medium text-[var(--text-primary)]">
                 {formatTimer(seconds)}
@@ -277,7 +277,7 @@ function DailyTaskCard({
             <p className="text-xs font-medium text-[var(--text-secondary)]">
               قيّم جودة الحفظ والمراجعة لهذا الورد:
             </p>
-            <div className="mt-2.5 grid grid-cols-3 gap-2">
+            <div className="mt-2.5 grid min-w-0 grid-cols-3 gap-2">
               {(['perfect', 'hesitated', 'mistakes'] as TaskRating[]).map((r) => (
                 <motion.button
                   key={r}
@@ -463,18 +463,18 @@ export function TodayScreen({
     : `مرحلة الحفظ (الأشهر 1–${totalMonths})`;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6 pb-4">
       {/* Top Overview Strip */}
-      <section className="card-hero rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 md:p-6">
+      <section className="card-hero w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5 md:p-6">
         <HeroCornerArabesque className="absolute -left-6 -top-6 h-48 w-48 text-[var(--accent)] opacity-[0.22]" />
-        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="relative z-10 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
             <TodayPageBadge
               focus={todayFocus}
               variant="hero"
               testId="today-hero-page-badge"
             />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
               <p className="text-xs text-[var(--text-muted)]">
                 {formatArabicDate(todayIso)}
                 {plannedDay ? ` · الشهر ${plannedDay.monthNumber} من ${totalMonths}` : ''}
@@ -492,7 +492,7 @@ export function TodayScreen({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+          <div className="flex min-w-0 flex-wrap items-center gap-4 sm:gap-5">
             {(() => {
               const isStreakLit =
                 todayFocus.areAllTasksDone || Boolean(dayLog?.manualConfirmed);
@@ -501,7 +501,7 @@ export function TodayScreen({
                 <div
                   data-testid="today-streak-box"
                   data-lit={isStreakLit ? 'true' : 'false'}
-                  className={`flex items-center gap-3 rounded-2xl border px-3.5 py-2.5 transition-all duration-300 ${
+                  className={`flex min-w-0 max-w-full items-center gap-3 rounded-2xl border px-3.5 py-2.5 transition-all duration-300 ${
                     isStreakLit
                       ? 'border-amber-400/55 bg-gradient-to-l from-amber-500/12 via-[var(--bg-surface)]/80 to-orange-500/10 shadow-sm'
                       : 'border-[var(--border-hairline)] bg-[var(--bg-surface)]/75'
@@ -512,11 +512,11 @@ export function TodayScreen({
                     size="sm"
                     testId="today-streak-flame"
                   />
-                  <div>
-                    <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                       <p className="text-xs whitespace-nowrap text-[var(--text-muted)]">سلسلة الاستمرار</p>
                       <span
-                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${
+                        className={`max-w-full rounded-md px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${
                           isStreakLit
                             ? 'bg-amber-500/18 text-amber-700 dark:text-amber-300'
                             : 'bg-[var(--bg-subtle)] text-[var(--text-muted)]'
@@ -540,7 +540,7 @@ export function TodayScreen({
               );
             })()}
 
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <ProgressRing
                 percent={juzStats.percent}
                 size={68}
@@ -548,7 +548,7 @@ export function TodayScreen({
                 label={`${juzStats.percent}%`}
                 sublabel={`ج ${activeJuz}`}
               />
-              <div>
+              <div className="min-w-0 flex-1 break-words">
                 <p className="text-xs text-[var(--text-muted)]">{JUZ_NAMES_AR[activeJuz]}</p>
                 <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
                   {juzStats.done} / {juzStats.total} صفحة
@@ -566,20 +566,20 @@ export function TodayScreen({
       {/* Remaining Days to Finish Memorization */}
       <section
         data-testid="today-remaining-days-card"
-        className="card-suggestion rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+        className="card-suggestion w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5"
       >
         <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--accent)] opacity-[0.20]" />
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3.5">
+        <div className="relative z-10 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3.5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
               <CalendarClock className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
               <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)]">
                 <ThemeEmblem className="h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
                 <span>الأيام المتبقية لإنهاء الحفظ</span>
               </p>
-              <div className="mt-1 flex flex-wrap items-baseline gap-2.5">
+              <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-2.5">
                 <p
                   data-testid="today-remaining-memorization-days"
                   className="text-2xl font-bold tabular-nums text-[var(--text-primary)]"
@@ -589,7 +589,7 @@ export function TodayScreen({
                     : `${timeline.daysRemainingToMemorization} يوم`}
                 </p>
                 {memorizedCount < TOTAL_MUSHAF_PAGES && (
-                  <span className="rounded-lg bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium tabular-nums text-[var(--accent)]">
+                  <span className="max-w-full rounded-lg bg-[var(--accent-soft)] px-2.5 py-0.5 text-xs font-medium tabular-nums text-[var(--accent)]">
                     موعد الختم: {formatShortArabicDate(timeline.memorizationEndDate)}
                   </span>
                 )}
@@ -628,11 +628,11 @@ export function TodayScreen({
       {missedPages.length > 3 && (
         <section
           role="status"
-          className="rounded-2xl border border-[var(--warn)]/30 bg-[var(--warn-soft)] p-4 text-sm"
+          className="w-full min-w-0 rounded-2xl border border-[var(--warn)]/30 bg-[var(--warn-soft)] p-4 text-sm"
         >
-          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--warn)]" />
-            <div>
+            <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
               <p className="font-semibold text-[var(--text-primary)]">
                 تنبيه لطيف: لديك {missedPages.length} صفحات متأخرة عن الخطة
               </p>
@@ -647,13 +647,13 @@ export function TodayScreen({
 
       {/* After-Midnight / Manual & Numeric Retroactive Work Confirmation */}
       {todayIso >= startDate && (
-        <section className="card-elevated rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
+        <section className="card-elevated w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
                 <History className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
                   تأكيد الإنجاز بعد منتصف الليل / الإدخال اليدوي والرقمي
                 </h2>
@@ -667,11 +667,11 @@ export function TodayScreen({
               type="button"
               onClick={() => setShowRetroPanel((v) => !v)}
               aria-expanded={showRetroPanel}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 text-xs font-medium whitespace-nowrap text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)]"
+              className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-subtle)] sm:whitespace-nowrap"
             >
               <span>{showRetroPanel ? 'إخفاء اللوحة' : 'تأكيد يوم فائت / إدخال رقمي'}</span>
               <ChevronDown
-                className={`h-4 w-4 transition-transform ${showRetroPanel ? 'rotate-180' : ''}`}
+                className={`h-4 w-4 shrink-0 transition-transform ${showRetroPanel ? 'rotate-180' : ''}`}
               />
             </button>
           </div>
@@ -692,7 +692,7 @@ export function TodayScreen({
                       <p className="text-xs font-semibold text-[var(--text-secondary)]">
                         أيام قريبة لم تُؤكَّد بعد (تأكيد يدوي سريع):
                       </p>
-                      <div className="grid gap-2.5 sm:grid-cols-2">
+                      <div className="grid min-w-0 gap-2.5 sm:grid-cols-2">
                         {unconfirmedRecentDays.slice(0, 4).map((d) => {
                           const isYesterday = d.date === yesterdayIso;
                           const targetLabel =
@@ -706,14 +706,14 @@ export function TodayScreen({
                           return (
                             <div
                               key={d.date}
-                              className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
+                              className={`flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
                                 isYesterday
                                   ? 'border-[var(--accent)]/40 bg-[var(--accent-soft)]/35'
                                   : 'border-[var(--border-hairline)] bg-[var(--bg-canvas)]'
                               }`}
                             >
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
+                              <div className="min-w-0 flex-1 break-words">
+                                <div className="flex flex-wrap items-center gap-1.5">
                                   {isYesterday && (
                                     <span className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-ink)]">
                                       أمس
@@ -728,13 +728,13 @@ export function TodayScreen({
                                 </p>
                               </div>
 
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => handleQuickConfirmDay(d, 'perfect')}
                                   className="btn-accent-glow inline-flex h-9 items-center gap-1 rounded-xl bg-[var(--accent)] px-3 text-xs font-medium whitespace-nowrap text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
                                 >
-                                  <Check className="h-3.5 w-3.5" />
+                                  <Check className="h-3.5 w-3.5 shrink-0" />
                                   <span>{isYesterday ? 'تأكيد يوم أمس' : 'تأكيد اليوم'}</span>
                                 </button>
                                 <button
@@ -755,14 +755,14 @@ export function TodayScreen({
                   {/* Numeric + Manual Confirmation Form */}
                   <form
                     onSubmit={handleSubmitRetroForm}
-                    className="rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-4"
+                    className="min-w-0 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] p-3.5 sm:p-4"
                   >
                     <p className="text-xs font-semibold text-[var(--text-primary)]">
                       إدخال رقمي ويدوي مخصص (تحديد التاريخ ورقم الصفحة)
                     </p>
 
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div>
+                    <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="min-w-0">
                         <label
                           htmlFor="retro-date-input"
                           className="block text-xs font-medium text-[var(--text-secondary)]"
@@ -776,11 +776,11 @@ export function TodayScreen({
                           max={todayIso}
                           value={retroDate}
                           onChange={(e) => handleRetroDateChange(e.target.value)}
-                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                          className="mt-1 h-10 w-full min-w-0 max-w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                         />
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <label
                           htmlFor="retro-start-page"
                           className="block text-xs font-medium text-[var(--text-secondary)]"
@@ -799,11 +799,11 @@ export function TodayScreen({
                             setRetroError(null);
                           }}
                           placeholder="مثال: 15"
-                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          className="mt-1 h-10 w-full min-w-0 max-w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <label
                           htmlFor="retro-end-page"
                           className="block text-xs font-medium text-[var(--text-secondary)]"
@@ -822,15 +822,15 @@ export function TodayScreen({
                             setRetroError(null);
                           }}
                           placeholder="صفحة واحدة"
-                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          className="mt-1 h-10 w-full min-w-0 max-w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <span className="block text-xs font-medium text-[var(--text-secondary)]">
                           تقييم الإتقان
                         </span>
-                        <div className="mt-1 grid grid-cols-3 gap-1.5">
+                        <div className="mt-1 grid min-w-0 grid-cols-3 gap-1.5">
                           {(['perfect', 'hesitated', 'mistakes'] as TaskRating[]).map((r) => {
                             const selected = retroRating === r;
                             return (
@@ -853,8 +853,8 @@ export function TodayScreen({
                       </div>
                     </div>
 
-                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-                      <div className="flex-1">
+                    <div className="mt-3 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
+                      <div className="min-w-0 flex-1">
                         <label
                           htmlFor="retro-note-input"
                           className="block text-xs font-medium text-[var(--text-secondary)]"
@@ -867,16 +867,16 @@ export function TodayScreen({
                           value={retroNote}
                           onChange={(e) => setRetroNote(e.target.value)}
                           placeholder="مثال: أتممت الحفظ والمراجعة قبل الفجر وتأخرت عن تسجيله"
-                          className="mt-1 h-10 w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                          className="mt-1 h-10 w-full min-w-0 max-w-full rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                         />
                       </div>
 
                       <motion.button
                         type="submit"
                         whileTap={{ scale: 0.97 }}
-                        className="btn-accent-glow inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 text-sm font-medium whitespace-nowrap text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
+                        className="btn-accent-glow inline-flex min-h-10 max-w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2 text-sm font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)] sm:whitespace-nowrap"
                       >
-                        <CheckCircle2 className="h-4 w-4" />
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
                         <span>تأكيد واحتساب في السلسلة</span>
                       </motion.button>
                     </div>
@@ -896,7 +896,7 @@ export function TodayScreen({
 
       {/* Before start date or after 36 months */}
       {!plannedDay ? (
-        <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
+        <section className="w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 sm:p-6">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             {todayIso < startDate
               ? `تبدأ خطتك يوم ${formatShortArabicDate(startDate)}`
@@ -931,7 +931,7 @@ export function TodayScreen({
       ) : todayFocus.preSabaqSundayDDMMYYYY ? (
         <section
           data-testid="today-pre-sabaq-weekend-card"
-          className="rounded-2xl border border-[var(--accent)]/30 bg-[var(--bg-surface)] p-6"
+          className="w-full min-w-0 rounded-2xl border border-[var(--accent)]/30 bg-[var(--bg-surface)] p-5 sm:p-6"
         >
           <p className="text-xs text-[var(--text-muted)]">
             {plannedDay.isFriday ? 'يوم الجمعة' : 'يوم السبت'} · المراجعة والتهيئة للبدء
@@ -949,9 +949,9 @@ export function TodayScreen({
         </section>
       ) : plannedDay.isSaturday ? (
         /* Saturday: Catch-up + Rest */
-        <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
+        <section className="w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5 sm:p-6">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 flex-1 break-words">
               <p className="text-xs text-[var(--text-muted)]">يوم السبت · الاستدراك والراحة</p>
               <h2 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
                 استدراك الصفحات الفائتة
@@ -974,9 +974,9 @@ export function TodayScreen({
               {missedPages.map((m) => (
                 <li
                   key={m.page}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3"
                 >
-                  <div>
+                  <div className="min-w-0 flex-1 break-words">
                     <p className="text-sm font-medium text-[var(--text-primary)]">
                       صفحة {m.page} · الجزء {m.juz}
                     </p>
@@ -987,7 +987,7 @@ export function TodayScreen({
                   <button
                     type="button"
                     onClick={() => onCatchUpPage(todayIso, m.page)}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-4 text-xs font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
+                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-4 text-xs font-medium text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     <span>تم الاستدراك</span>
@@ -999,11 +999,11 @@ export function TodayScreen({
         </section>
       ) : (
         /* Sun-Thu (and Friday with Weekly Review + Teacher Recitation) */
-        <div className="space-y-4">
+        <div className="w-full min-w-0 space-y-4">
           {plannedDay.isFriday ? (
-            <section className="rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
+            <section className="w-full min-w-0 rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">
                   <p className="text-xs text-[var(--text-muted)]">يوم الجمعة · التثبيت الأسبوعي</p>
                   <h2 className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
                     مراجعة صفحات الأسبوع (5 صفحات) والتسميع
@@ -1024,13 +1024,13 @@ export function TodayScreen({
                         0
                       )
                     }
-                    className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium ${
+                    className={`inline-flex h-10 max-w-full shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium ${
                       dayLog?.tasks.friday_review?.completed
                         ? 'border border-[var(--accent)]/40 bg-[var(--accent-soft)] text-[var(--accent)]'
                         : 'bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)]'
                     }`}
                   >
-                    <Check className="h-4 w-4" />
+                    <Check className="h-4 w-4 shrink-0" />
                     <span>
                       {dayLog?.tasks.friday_review?.completed
                         ? 'تمت مراجعة الأسبوع'
@@ -1048,19 +1048,19 @@ export function TodayScreen({
                     onChange={(e) =>
                       onUpdateFridayTeacher(todayIso, e.target.checked, teacherNoteDraft)
                     }
-                    className="h-5 w-5 rounded border-[var(--border-hairline)] accent-[var(--accent)]"
+                    className="h-5 w-5 shrink-0 rounded border-[var(--border-hairline)] accent-[var(--accent)]"
                   />
                   <span>تم التسميع للمعلم / المعلمة</span>
                 </label>
 
-                <div>
+                <div className="min-w-0">
                   <label
                     htmlFor="teacher-note-input"
                     className="block text-xs text-[var(--text-muted)]"
                   >
                     ملاحظة قصيرة حول التسميع
                   </label>
-                  <div className="mt-1.5 flex gap-2">
+                  <div className="mt-1.5 flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
                     <input
                       id="teacher-note-input"
                       type="text"
@@ -1074,7 +1074,7 @@ export function TodayScreen({
                         )
                       }
                       placeholder="مثال: ضبط التشكيل في أول صفحة 14"
-                      className="h-10 flex-1 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                      className="h-10 min-w-0 flex-1 basis-40 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-canvas)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                     />
                     <button
                       type="button"
@@ -1085,7 +1085,7 @@ export function TodayScreen({
                           teacherNoteDraft
                         )
                       }
-                      className="h-10 rounded-xl border border-[var(--border-hairline)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
+                      className="h-10 shrink-0 rounded-xl border border-[var(--border-hairline)] px-4 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]"
                     >
                       حفظ
                     </button>
@@ -1169,8 +1169,8 @@ export function TodayScreen({
 
       {/* Extra Review Queue (Pages rated Mistakes) */}
       {extraReviewPages.length > 0 && (
-        <section className="rounded-2xl border border-[var(--danger)]/30 bg-[var(--bg-surface)] p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <section className="w-full min-w-0 rounded-2xl border border-[var(--danger)]/30 bg-[var(--bg-surface)] p-4 sm:p-5">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
               صفحات مضافة للمراجعة الإضافية ({extraReviewPages.length})
             </h2>
@@ -1200,14 +1200,14 @@ export function TodayScreen({
       )}
 
       {/* Daily Dua & Daily Tip Suggestion Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2">
         <section
           data-testid="today-dua-suggestion-card"
-          className="card-suggestion flex flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+          className="card-suggestion flex w-full min-w-0 flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5"
         >
           <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--gold)] opacity-[0.24]" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+          <div className="relative z-10 min-w-0 break-words [overflow-wrap:anywhere]">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
               <span className="inline-flex items-center gap-1.5 font-medium text-[var(--gold)]">
                 <ThemeEmblem className="h-4 w-4 shrink-0" />
                 <span>دعاء اليوم من القرآن</span>
@@ -1245,11 +1245,11 @@ export function TodayScreen({
 
         <section
           data-testid="today-tip-suggestion-card"
-          className="card-suggestion flex flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-5"
+          className="card-suggestion flex w-full min-w-0 flex-col justify-between rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-surface)] p-4 sm:p-5"
         >
           <CardSuggestionOrnament className="pointer-events-none absolute -bottom-4 -left-4 text-[var(--accent)] opacity-[0.22]" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+          <div className="relative z-10 min-w-0 break-words [overflow-wrap:anywhere]">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
               <span className="inline-flex items-center gap-1.5 font-medium text-[var(--accent)]">
                 <ThemeEmblem className="h-4 w-4 shrink-0" />
                 <span>نصيحة اليوم</span>
@@ -1264,7 +1264,7 @@ export function TodayScreen({
             </p>
           </div>
 
-          <div className="relative z-10 mt-4 flex items-center justify-between border-t border-[var(--border-hairline)] pt-3">
+          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-3">
             <button
               type="button"
               onClick={() => onNavigate('method')}
